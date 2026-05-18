@@ -1,11 +1,11 @@
-````md id="5v2qai"
 <div align="center">
 
 # 💸 InvestAI API
 
 ### API REST Inteligente para Plataforma de Investimentos
 
-<img src="./docs/assets/banner.png" alt="InvestAI API Banner" width="100%"/>
+[//]: # (TODO- Banner do projeto)
+[//]: # (<img src="./docs/assets/banner.png" alt="InvestAI API Banner" width="100%"/>)
 
 <br/>
 
@@ -51,15 +51,20 @@ A aplicação foi desenvolvida utilizando arquitetura modular e princípios mode
 
 > Espaço reservado para screenshots da documentação Swagger, arquitetura e dashboards futuros.
 
-## 📚 Swagger UI
+[//]: # (## 📚 Swagger UI)
 
-<img src="./docs/assets/swagger-preview.png" alt="Swagger Preview"/>
+[//]: # ()
+[//]: # (<img src="./docs/assets/swagger-preview.png" alt="Swagger Preview"/>)
 
----
+[//]: # ()
+[//]: # (---)
 
-## 🏗️ Arquitetura
+[//]: # (## 🏗️ Arquitetura)
 
-<img src="./docs/assets/architecture-preview.png" alt="Arquitetura"/>
+[//]: # ()
+[//]: # (<img src="./docs/assets/architecture-preview.png" alt="Arquitetura"/>)
+
+[//]: # ()
 
 ---
 
@@ -99,87 +104,7 @@ A aplicação foi desenvolvida utilizando arquitetura modular e princípios mode
 
 ---
 
-# 🏗️ Arquitetura do Projeto
 
-```text id="wtjlwm"
-com.investai.api
-├── config/
-│
-├── module/
-│   ├── auth/
-│   ├── perfil/
-│   ├── ativo/
-│   ├── rendafixa/
-│   ├── dashboard/
-│   ├── relatorio/
-│   ├── notificacao/
-│   └── favorito/
-│
-├── infra/
-│   ├── rabbitmq/
-│   ├── hgbrasil/
-│   └── exception/
-│
-└── shared/
-    └── security/
-```
-
----
-
-# 📂 Estrutura Detalhada
-
-## ⚙️ config/
-Classes globais de configuração da aplicação.
-
-```text id="lfhrj0"
-config/
-├── SecurityConfig.java
-├── RabbitConfig.java
-├── CacheConfig.java
-├── SwaggerConfig.java
-└── CorsConfig.java
-```
-
----
-
-## 📦 module/
-Módulos de negócio da aplicação.
-
-Cada módulo segue uma estrutura desacoplada e organizada por responsabilidade.
-
-```text id="mw6m5r"
-module/
-└── auth/
-    ├── controller/
-    ├── service/
-    ├── dto/
-    ├── entity/
-    ├── repository/
-    ├── mapper/
-    └── enums/
-```
-
----
-
-## 🔐 auth/
-Responsável por:
-- Cadastro
-- Login
-- JWT
-- Refresh Token
-- Controle de acesso
-
----
-
-## 👤 perfil/
-Gerenciamento do perfil de investidor.
-
-- Perfil de risco
-- Objetivos financeiros
-- Horizonte de investimento
-- Preferências de setores
-
----
 
 ## 📈 ativo/
 Módulo de renda variável.
@@ -213,95 +138,6 @@ Agregador principal de dados da aplicação.
 
 ---
 
-## 📑 relatorio/
-Geração de PDFs da plataforma.
-
-```text id="upn57d"
-relatorio/
-├── controller/
-├── service/
-├── builder/
-└── component/
-```
-
----
-
-## 🔔 notificacao/
-Sistema de notificações da plataforma.
-
-- Alertas
-- Eventos financeiros
-- Notificações in-app
-
----
-
-## ⭐ favorito/
-Gerenciamento de favoritos do usuário.
-
-- Ativos favoritos
-- Alertas automáticos
-- Monitoramento rápido
-
----
-
-## 📨 infra/rabbitmq/
-Camada de comunicação assíncrona.
-
-```text id="2j2gvx"
-rabbitmq/
-├── publisher/
-├── consumer/
-├── dto/
-└── config/
-```
-
-Responsável por:
-- Publicação de eventos
-- Consumo de filas
-- Integração com microsserviço IA
-
----
-
-## 🌎 infra/hgbrasil/
-Integração HTTP com APIs externas.
-
-```text id="vk9gcf"
-hgbrasil/
-├── client/
-├── dto/
-├── mapper/
-└── service/
-```
-
----
-
-## ❌ infra/exception/
-Tratamento global de exceções.
-
-```text id="kgsy8w"
-exception/
-├── GlobalExceptionHandler.java
-├── BusinessException.java
-├── NotFoundException.java
-├── UnauthorizedException.java
-└── ErrorResponse.java
-```
-
----
-
-## 🔒 shared/security/
-Componentes compartilhados de segurança.
-
-```text id="g2r96q"
-security/
-├── JwtUtil.java
-├── JwtFilter.java
-├── CustomUserDetailsService.java
-└── SecurityConstants.java
-```
-
----
-
 # 🚀 Como Executar o Projeto
 
 # 📋 Pré-requisitos
@@ -314,25 +150,21 @@ security/
 
 ---
 
-# 🐳 Subindo Infraestrutura
+[//]: # (# 🗄️ Serviços disponíveis)
 
-## Execute:
+[//]: # ()
+[//]: # (| Serviço | Porta |)
 
-```bash id="v7u6vx"
-docker-compose up -d
-```
+[//]: # (|---|---|)
 
----
+[//]: # (| PostgreSQL | 5432 |)
 
-# 🗄️ Serviços disponíveis
+[//]: # (| RabbitMQ | 5672 |)
 
-| Serviço | Porta |
-|---|---|
-| PostgreSQL | 5432 |
-| RabbitMQ | 5672 |
-| RabbitMQ Management | 15672 |
+[//]: # (| RabbitMQ Management | 15672 |)
 
----
+[//]: # ()
+[//]: # (---)
 
 # ▶️ Executando a API
 
@@ -427,47 +259,6 @@ RabbitMQ é utilizado para:
 
 ---
 
-## 🗃️ Banco de Dados
-- UUID como chave primária
-- Flyway Migration
-- Auditoria de timestamps
-
----
-
-# 🧪 Testes
-
-> Espaço reservado para estratégia de testes automatizados.
-
-## Futuramente:
-- Unit Tests
-- Integration Tests
-- TestContainers
-- MockMvc
-
----
-
-# 📦 Roadmap
-
-## ✅ MVP
-- [ ] Autenticação JWT
-- [ ] Perfil do investidor
-- [ ] CRUD de ativos
-- [ ] Dashboard
-- [ ] RabbitMQ
-- [ ] Relatórios PDF
-
----
-
-## 🚧 Futuro
-- [ ] Cache distribuído
-- [ ] Rate limiting
-- [ ] Observabilidade
-- [ ] Métricas Prometheus
-- [ ] OpenTelemetry
-- [ ] CI/CD
-
----
-
 # 📸 Releases
 
 > Espaço reservado para screenshots futuras.
@@ -475,38 +266,6 @@ RabbitMQ é utilizado para:
 ## v0.1.0
 
 <img src="./docs/assets/releases/v0.1.0.png"/>
-
----
-
-# 🤝 Contribuição
-
-## Branch Pattern
-
-```bash id="d1r23j"
-feature/
-bugfix/
-hotfix/
-release/
-```
-
----
-
-## Commit Pattern
-
-```bash id="4h4c0k"
-feat:
-fix:
-refactor:
-docs:
-test:
-chore:
-```
-
----
-
-# 📄 Licença
-
-Este projeto está sob a licença MIT.
 
 ---
 
@@ -520,11 +279,11 @@ Este projeto está sob a licença MIT.
 
 <br/>
 
-<a href="https://github.com/SEU-USUARIO">
+<a href="https://github.com/Luke-1207">
   <img src="https://img.shields.io/badge/GitHub-Perfil-black?style=for-the-badge&logo=github"/>
 </a>
 
-<a href="https://linkedin.com/in/SEU-LINKEDIN">
+<a href="https://www.linkedin.com/in/lucas-fabiano-peres-silva-70390424a/">
   <img src="https://img.shields.io/badge/LinkedIn-Perfil-blue?style=for-the-badge&logo=linkedin"/>
 </a>
 
@@ -539,4 +298,4 @@ Este projeto está sob a licença MIT.
 Backend moderno para uma plataforma inteligente de investimentos.
 
 </div>
-````
+
