@@ -298,4 +298,3 @@ RabbitMQ é utilizado para:
 Backend moderno para uma plataforma inteligente de investimentos.
 
 </div>
-
