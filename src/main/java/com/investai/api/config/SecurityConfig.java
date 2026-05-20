@@ -39,18 +39,18 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Rotas públicas de autenticação
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/cadastro").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/esqueci-senha").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/redefinir-senha").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/auth/cadastro").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/auth/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/auth/esqueci-senha").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/auth/redefinir-senha").permitAll()
 
                         // Painel admin — somente GESTOR
-                        .requestMatchers("/api/v1/usuarios/**").hasRole(Role.GESTOR.toString())
-                        .requestMatchers("/api/v1/dashboard/admin").hasRole(Role.GESTOR.toString())
-                        .requestMatchers(HttpMethod.POST, "/api/v1/acoes").hasRole(Role.GESTOR.toString())
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/acoes/**").hasRole(Role.GESTOR.toString())
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/acoes/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers("/v1/usuarios/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers("/v1/dashboard/admin").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.POST, "/v1/acoes").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.PUT, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.DELETE, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
 
                         // Tudo mais precisa estar autenticado
                         .anyRequest().authenticated()
