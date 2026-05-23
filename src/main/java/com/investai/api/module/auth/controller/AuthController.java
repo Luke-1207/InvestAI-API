@@ -2,6 +2,8 @@ package com.investai.api.module.auth.controller;
 
 import com.investai.api.module.auth.dto.CadastroRequestDTO;
 import com.investai.api.module.auth.dto.CadastroResponseDTO;
+import com.investai.api.module.auth.dto.LoginRequestDTO;
+import com.investai.api.module.auth.dto.LoginResponseDTO;
 import com.investai.api.module.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +27,13 @@ public class AuthController {
     ) {
         CadastroResponseDTO response = authService.cadastrar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDTO> login(
+            @Valid @RequestBody LoginRequestDTO dto
+    ) {
+        LoginResponseDTO response = authService.login(dto);
+        return ResponseEntity.ok(response);
     }
 }
