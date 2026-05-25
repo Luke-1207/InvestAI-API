@@ -4,11 +4,15 @@ import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.ConflictException;
 import com.investai.api.module.auth.dto.CadastroRequestDTO;
 import com.investai.api.module.auth.dto.CadastroResponseDTO;
+import com.investai.api.module.auth.dto.LoginRequestDTO;
+import com.investai.api.module.auth.dto.LoginResponseDTO;
+import com.investai.api.module.auth.entity.RefreshToken;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.repository.UsuarioRepository;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
+import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,8 +42,14 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     @InjectMocks
     private AuthService authService;
+
+    @Mock
+    private JwtUtil jwtUtil;
 
     private CadastroRequestDTO dto;
 
@@ -225,5 +236,66 @@ class AuthServiceTest {
                 "lucas@email.com",
                 usuario.getEmail()
         );
+    }
+
+    @Test
+    void deveRealizarLoginComSucesso() {
+
+        LoginRequestDTO dto = LoginRequestDTO.builder()
+                .email("lucas@email.com")
+                .senha("123456")
+                .build();
+
+        Usuario usuario = Usuario.builder()
+                .id(UUID.randomUUID())
+                .nome("Lucas")
+                .email("lucas@email.com")
+                .senha("senha-criptografada")
+                .ativo(true)
+                .role(Role.USUARIO)
+                .build();
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token("refresh-token")
+                .build();
+
+        when(usuarioRepository.findByEmail("lucas@email.com"))
+                .thenReturn(Optional.of(usuario));
+
+        when(passwordEncoder.matches(
+                dto.getSenha(),
+                usuario.getSenha()))
+                .thenReturn(true);
+
+        when(jwtUtil.gerarToken(usuario))
+                .thenReturn("access-token");
+
+        when(jwtUtil.getExpirationMs())
+                .thenReturn(3600000L);
+
+        when(refreshTokenService.criar(usuario))
+                .thenReturn(refreshToken);
+
+        LoginResponseDTO response = authService.login(dto);
+
+        assertNotNull(response);
+
+        assertEquals(
+                "access-token",
+                response.getAccessToken()
+        );
+
+        assertEquals(
+                "refresh-token",
+                response.getRefreshToken()
+        );
+
+        assertEquals(
+                3600L,
+                response.getExpiresIn()
+        );
+
+        verify(refreshTokenService).criar(usuario);
+        verify(jwtUtil).gerarToken(usuario);
     }
 }

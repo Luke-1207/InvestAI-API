@@ -5,6 +5,8 @@ import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
 import com.investai.api.module.auth.dto.CadastroRequestDTO;
 import com.investai.api.module.auth.dto.CadastroResponseDTO;
+import com.investai.api.module.auth.dto.LoginRequestDTO;
+import com.investai.api.module.auth.dto.LoginResponseDTO;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.service.AuthService;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
@@ -111,5 +113,88 @@ class AuthControllerTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.erro")
                         .value("As senhas não conferem"));
+    }
+
+    @Test
+    void deveRealizarLoginComSucesso() throws Exception {
+
+        LoginRequestDTO request = LoginRequestDTO.builder()
+                .email("lucas@email.com")
+                .senha("12345678")
+                .build();
+
+        LoginResponseDTO response = LoginResponseDTO.builder()
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
+                .expiresIn(3600L)
+                .build();
+
+        when(authService.login(any(LoginRequestDTO.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken")
+                        .value("access-token"))
+                .andExpect(jsonPath("$.refreshToken")
+                        .value("refresh-token"))
+                .andExpect(jsonPath("$.expiresIn")
+                        .value(3600));
+    }
+
+    @Test
+    void deveRetornar400QuandoLoginRequestForInvalido() throws Exception {
+
+        LoginRequestDTO request = LoginRequestDTO.builder()
+                .email("email-invalido")
+                .senha("")
+                .build();
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro")
+                        .value("Erro de validação"));
+    }
+
+    @Test
+    void deveRetornar422QuandoCredenciaisForemInvalidas() throws Exception {
+
+        LoginRequestDTO request = LoginRequestDTO.builder()
+                .email("lucas@email.com")
+                .senha("senha-errada")
+                .build();
+
+        when(authService.login(any(LoginRequestDTO.class)))
+                .thenThrow(new BusinessException("Credenciais inválidas"));
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro")
+                        .value("Credenciais inválidas"));
+    }
+
+    @Test
+    void deveRetornar422QuandoUsuarioEstiverDesabilitado() throws Exception {
+
+        LoginRequestDTO request = LoginRequestDTO.builder()
+                .email("lucas@email.com")
+                .senha("12345678")
+                .build();
+
+        when(authService.login(any(LoginRequestDTO.class)))
+                .thenThrow(new BusinessException("Credenciais inválidas"));
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro")
+                        .value("Credenciais inválidas"));
     }
 }
