@@ -19,7 +19,8 @@ class JwtUtilTest {
     void setup() {
         jwtUtil = new JwtUtil(
                 "minha-chave-super-segura-com-pelo-menos-32-caracteres",
-                1000 * 60 * 15 // 15 minutos
+                1000 * 60 * 15, // 15 minutos
+                7 // dias de expiração do refresh token
         );
 
         usuario = Usuario.builder()

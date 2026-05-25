@@ -5,6 +5,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -12,18 +13,22 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+@Getter
 @Component
 public class JwtUtil {
 
     private final SecretKey secretKey;
     private final long expirationMs;
+    private final long refreshExpirationDays;
 
     public JwtUtil(
         @Value("${jwt.secret}") String secret,
-        @Value("${jwt.expiration-ms}") long expirationMs
+        @Value("${jwt.expiration-ms}") long expirationMs,
+        @Value("${jwt.refresh-expiration-days}") long refreshExpirationDays
     ) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
+        this.refreshExpirationDays = refreshExpirationDays;
     }
 
     public String gerarToken(Usuario usuario) {

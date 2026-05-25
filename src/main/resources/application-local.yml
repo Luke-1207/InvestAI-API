@@ -26,6 +26,7 @@ spring:
 jwt:
   secret: ${JWT_SECRET:investai-local-dev-secret-super-segura-256bits}
   expiration-ms: 900000
+  refresh-expiration-days: 7
 
 #hgbrasil:
 #  api-key: ${HG_BRASIL_API_KEY}
