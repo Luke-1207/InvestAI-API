@@ -3,10 +3,7 @@ package com.investai.api.module.auth.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
-import com.investai.api.module.auth.dto.CadastroRequestDTO;
-import com.investai.api.module.auth.dto.CadastroResponseDTO;
-import com.investai.api.module.auth.dto.LoginRequestDTO;
-import com.investai.api.module.auth.dto.LoginResponseDTO;
+import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.service.AuthService;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
@@ -196,5 +193,88 @@ class AuthControllerTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.erro")
                         .value("Credenciais inválidas"));
+    }
+
+    @Test
+    void deveRealizarRefreshComSucesso() throws Exception {
+
+        RefreshRequestDTO request = RefreshRequestDTO.builder()
+                .refreshToken("refresh-token")
+                .build();
+
+        LoginResponseDTO response = LoginResponseDTO.builder()
+                .accessToken("novo-access-token")
+                .refreshToken("novo-refresh-token")
+                .expiresIn(3600L)
+                .build();
+
+        when(authService.refresh(any(RefreshRequestDTO.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken")
+                        .value("novo-access-token"))
+                .andExpect(jsonPath("$.refreshToken")
+                        .value("novo-refresh-token"))
+                .andExpect(jsonPath("$.expiresIn")
+                        .value(3600));
+    }
+
+    @Test
+    void deveRetornar400QuandoRefreshRequestForInvalido() throws Exception {
+
+        RefreshRequestDTO request = RefreshRequestDTO.builder()
+                .refreshToken("")
+                .build();
+
+        mockMvc.perform(post("/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro")
+                        .value("Erro de validação"));
+    }
+
+    @Test
+    void deveRetornar422QuandoRefreshTokenForInvalido() throws Exception {
+
+        RefreshRequestDTO request = RefreshRequestDTO.builder()
+                .refreshToken("token-invalido")
+                .build();
+
+        when(authService.refresh(any(RefreshRequestDTO.class)))
+                .thenThrow(new BusinessException("Refresh token inválido"));
+
+        mockMvc.perform(post("/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro")
+                        .value("Refresh token inválido"));
+    }
+
+    @Test
+    void deveRetornar422QuandoRefreshTokenEstiverExpiradoOuRevogado() throws Exception {
+
+        RefreshRequestDTO request = RefreshRequestDTO.builder()
+                .refreshToken("refresh-token")
+                .build();
+
+        when(authService.refresh(any(RefreshRequestDTO.class)))
+                .thenThrow(
+                        new BusinessException(
+                                "Refresh token expirado ou revogado"
+                        )
+                );
+
+        mockMvc.perform(post("/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro")
+                        .value("Refresh token expirado ou revogado"));
     }
 }

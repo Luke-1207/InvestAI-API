@@ -2,10 +2,7 @@ package com.investai.api.module.auth.service;
 
 import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.ConflictException;
-import com.investai.api.module.auth.dto.CadastroRequestDTO;
-import com.investai.api.module.auth.dto.CadastroResponseDTO;
-import com.investai.api.module.auth.dto.LoginRequestDTO;
-import com.investai.api.module.auth.dto.LoginResponseDTO;
+import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.RefreshToken;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
@@ -34,7 +31,6 @@ public class AuthService {
             throw new BusinessException("As senhas não conferem");
         }
 
-        // TODO - Verificar Segurança - expor e-mail já cadastrado?
         if (usuarioRepository.existsByEmail(dto.getEmail())) {
             throw new ConflictException("E-mail já cadastrado");
         }
@@ -84,6 +80,23 @@ public class AuthService {
         return LoginResponseDTO.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getToken())
+                .expiresIn(jwtUtil.getExpirationMs() / 1000)
+                .build();
+    }
+
+    @Transactional
+    public LoginResponseDTO refresh(RefreshRequestDTO dto){
+        RefreshToken tokenAtual = refreshTokenService.buscarValido(dto.getRefreshToken());
+        Usuario usuario = tokenAtual.getUsuario();
+
+        refreshTokenService.revogar(dto.getRefreshToken());
+
+        String novoAccessToken = jwtUtil.gerarToken(usuario);
+        RefreshToken novoRefreshToken = refreshTokenService.criar(usuario);
+
+        return LoginResponseDTO.builder()
+                .accessToken(novoAccessToken)
+                .refreshToken(novoRefreshToken.getToken())
                 .expiresIn(jwtUtil.getExpirationMs() / 1000)
                 .build();
     }

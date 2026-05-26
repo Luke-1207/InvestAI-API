@@ -2,10 +2,7 @@ package com.investai.api.module.auth.service;
 
 import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.ConflictException;
-import com.investai.api.module.auth.dto.CadastroRequestDTO;
-import com.investai.api.module.auth.dto.CadastroResponseDTO;
-import com.investai.api.module.auth.dto.LoginRequestDTO;
-import com.investai.api.module.auth.dto.LoginResponseDTO;
+import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.RefreshToken;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
@@ -22,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,7 +28,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-
 class AuthServiceTest {
 
     @Mock
@@ -297,5 +294,119 @@ class AuthServiceTest {
 
         verify(refreshTokenService).criar(usuario);
         verify(jwtUtil).gerarToken(usuario);
+    }
+
+    @Test
+    void deveRealizarRefreshComSucesso() {
+
+        RefreshRequestDTO dto = RefreshRequestDTO.builder()
+                .refreshToken("refresh-token-antigo")
+                .build();
+
+        Usuario usuario = Usuario.builder()
+                .id(UUID.randomUUID())
+                .nome("Lucas")
+                .email("lucas@email.com")
+                .ativo(true)
+                .role(Role.USUARIO)
+                .build();
+
+        RefreshToken tokenAtual = RefreshToken.builder()
+                .token("refresh-token-antigo")
+                .usuario(usuario)
+                .revogado(false)
+                .expiraEm(LocalDateTime.now().plusDays(7))
+                .build();
+
+        RefreshToken novoRefreshToken = RefreshToken.builder()
+                .token("novo-refresh-token")
+                .usuario(usuario)
+                .revogado(false)
+                .expiraEm(LocalDateTime.now().plusDays(7))
+                .build();
+
+        when(refreshTokenService.buscarValido("refresh-token-antigo"))
+                .thenReturn(tokenAtual);
+
+        when(jwtUtil.gerarToken(usuario))
+                .thenReturn("novo-access-token");
+
+        when(jwtUtil.getExpirationMs())
+                .thenReturn(3600000L);
+
+        when(refreshTokenService.criar(usuario))
+                .thenReturn(novoRefreshToken);
+
+        LoginResponseDTO response = authService.refresh(dto);
+
+        assertNotNull(response);
+
+        assertEquals(
+                "novo-access-token",
+                response.getAccessToken()
+        );
+
+        assertEquals(
+                "novo-refresh-token",
+                response.getRefreshToken()
+        );
+
+        assertEquals(
+                3600L,
+                response.getExpiresIn()
+        );
+
+        verify(refreshTokenService)
+                .buscarValido("refresh-token-antigo");
+
+        verify(refreshTokenService)
+                .revogar("refresh-token-antigo");
+
+        verify(refreshTokenService)
+                .criar(usuario);
+
+        verify(jwtUtil)
+                .gerarToken(usuario);
+    }
+
+    @Test
+    void deveRevogarTokenAntigoAoRealizarRefresh() {
+
+        RefreshRequestDTO dto = RefreshRequestDTO.builder()
+                .refreshToken("refresh-antigo")
+                .build();
+
+        Usuario usuario = Usuario.builder()
+                .id(UUID.randomUUID())
+                .ativo(true)
+                .build();
+
+        RefreshToken tokenAtual = RefreshToken.builder()
+                .token("refresh-antigo")
+                .usuario(usuario)
+                .revogado(false)
+                .expiraEm(LocalDateTime.now().plusDays(7))
+                .build();
+
+        RefreshToken novoRefresh = RefreshToken.builder()
+                .token("refresh-novo")
+                .build();
+
+        when(refreshTokenService.buscarValido("refresh-antigo"))
+                .thenReturn(tokenAtual);
+
+        when(jwtUtil.gerarToken(usuario))
+                .thenReturn("access");
+
+        when(jwtUtil.getExpirationMs())
+                .thenReturn(3600000L);
+
+        when(refreshTokenService.criar(usuario))
+                .thenReturn(novoRefresh);
+
+        authService.refresh(dto);
+
+        verify(refreshTokenService)
+                .revogar("refresh-antigo");
     }
 }
