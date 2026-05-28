@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -276,5 +277,52 @@ class AuthControllerTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.erro")
                         .value("Refresh token expirado ou revogado"));
+    }
+
+    @Test
+    void deveRealizarLogoutComSucesso() throws Exception {
+
+        LogoutRequestDTO request = LogoutRequestDTO.builder()
+                .refreshToken("refresh-token")
+                .build();
+
+        mockMvc.perform(post("/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deveRetornar400QuandoLogoutRequestForInvalido() throws Exception {
+
+        LogoutRequestDTO request = LogoutRequestDTO.builder()
+                .refreshToken("")
+                .build();
+
+        mockMvc.perform(post("/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro")
+                        .value("Erro de validação"));
+    }
+
+    @Test
+    void deveRetornar422QuandoLogoutFalhar() throws Exception {
+
+        LogoutRequestDTO request = LogoutRequestDTO.builder()
+                .refreshToken("refresh-token")
+                .build();
+
+        doThrow(new BusinessException("Refresh token inválido"))
+                .when(authService)
+                .logout(any(LogoutRequestDTO.class));
+
+        mockMvc.perform(post("/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro")
+                        .value("Refresh token inválido"));
     }
 }
