@@ -45,6 +45,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/v1/auth/esqueci-senha").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/redefinir-senha").permitAll()
 
+                        .requestMatchers("/v1/usuarios/me").authenticated()
+                        .requestMatchers("/v1/usuarios/me/senha").authenticated()
+
                         // Painel admin — somente GESTOR
                         .requestMatchers("/v1/usuarios/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers("/v1/dashboard/admin").hasRole(Role.GESTOR.toString())
