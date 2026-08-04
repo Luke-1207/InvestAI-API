@@ -3,6 +3,7 @@ package com.investai.api.config;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtAuthFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,6 +38,12 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Não autenticado"))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Acesso negado"))
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Rotas públicas de autenticação
                         .requestMatchers(HttpMethod.POST, "/v1/auth/cadastro").permitAll()
@@ -44,6 +51,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/esqueci-senha").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/redefinir-senha").permitAll()
+
+                        .requestMatchers("/v1/usuarios/me").authenticated()
+                        .requestMatchers("/v1/usuarios/me/senha").authenticated()
 
                         // Painel admin — somente GESTOR
                         .requestMatchers("/v1/usuarios/**").hasRole(Role.GESTOR.toString())

@@ -3,6 +3,11 @@ server:
     context-path: /investai-api
 
 spring:
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
+        default-page-size: 20
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
