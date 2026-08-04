@@ -409,4 +409,42 @@ class AuthServiceTest {
         verify(refreshTokenService)
                 .revogar("refresh-antigo");
     }
+
+    @Test
+    void deveRealizarLogout() {
+
+        LogoutRequestDTO dto = LogoutRequestDTO.builder()
+                .refreshToken("refresh-token")
+                .build();
+
+        authService.logout(dto);
+
+        verify(refreshTokenService)
+                .revogar("refresh-token");
+    }
+
+    @Test
+    void devePropagarExcecaoAoRealizarLogout() {
+
+        LogoutRequestDTO dto = LogoutRequestDTO.builder()
+                .refreshToken("refresh-token")
+                .build();
+
+        doThrow(new BusinessException("Erro ao revogar token"))
+                .when(refreshTokenService)
+                .revogar("refresh-token");
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> authService.logout(dto)
+        );
+
+        assertEquals(
+                "Erro ao revogar token",
+                exception.getMessage()
+        );
+
+        verify(refreshTokenService)
+                .revogar("refresh-token");
+    }
 }

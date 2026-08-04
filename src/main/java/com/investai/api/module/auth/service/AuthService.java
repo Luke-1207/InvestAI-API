@@ -85,6 +85,11 @@ public class AuthService {
     }
 
     @Transactional
+    public void logout(LogoutRequestDTO dto) {
+        refreshTokenService.revogar(dto.getRefreshToken());
+    }
+
+    @Transactional
     public LoginResponseDTO refresh(RefreshRequestDTO dto){
         RefreshToken tokenAtual = refreshTokenService.buscarValido(dto.getRefreshToken());
         Usuario usuario = tokenAtual.getUsuario();
