@@ -1,6 +1,5 @@
 package com.investai.api.module.auth.repository;
 
-import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
