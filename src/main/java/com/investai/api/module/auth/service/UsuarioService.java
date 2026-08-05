@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -27,6 +28,7 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final UsuarioAutenticadoHelper usuarioAutenticadoHelper;
     private final PerfilInvestidorRepository perfilInvestidorRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(readOnly = true)
     public UsuarioResponseDTO obter() {
@@ -121,6 +123,21 @@ public class UsuarioService {
         usuarioRepository.save(alvo);
 
         return toDetalheResponseDTO(alvo);
+    }
+
+    @Transactional
+    public void excluirConta(ExcluirContaRequestDTO dto){
+        Usuario usuario = usuarioAutenticadoHelper.getUsuarioLogado();
+
+        if(!passwordEncoder.matches(dto.getSenha(), usuario.getSenha())){
+            throw new BusinessException("Senha incorreta");
+        }
+
+        usuario.setDeletadoEm(LocalDateTime.now());
+        usuario.setAtivo(false);
+        usuarioRepository.save(usuario);
+
+        refreshTokenService.revogarTodos(usuario);
     }
 
     private UsuarioDetalheResponseDTO toDetalheResponseDTO(Usuario usuario) {

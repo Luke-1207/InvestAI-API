@@ -9,6 +9,7 @@ import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MediaType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
 @WebMvcTest(controllers = UsuarioController.class)
 @Import({SecurityConfig.class, JwtAuthFilter.class})
@@ -97,5 +99,16 @@ class UsuarioControllerSecurityTest {
         mockMvc.perform(get("/v1/usuarios")
                         .header("Authorization", "Bearer " + tokenGestor))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /usuarios/me - deve retornar 401 sem token")
+    void excluirConta_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(delete("/v1/usuarios/me")
+                        .contentType(String.valueOf(MediaType.APPLICATION_JSON))
+                        .content("""
+                { "senha": "qualquercoisa" }
+            """))
+                .andExpect(status().isUnauthorized());
     }
 }

@@ -50,6 +50,9 @@ class UsuarioServiceTest {
     @Mock
     private PerfilInvestidorRepository perfilInvestidorRepository;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     @InjectMocks
     private UsuarioService usuarioService;
 
@@ -520,6 +523,45 @@ class UsuarioServiceTest {
                 .hasMessage("Você não pode alterar o status da própria conta");
 
         verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("excluirConta - deve excluir conta com sucesso (soft delete)")
+    void excluirConta_deveExcluirComSucesso() {
+        Usuario usuario = criarUsuarioMock();
+
+        ExcluirContaRequestDTO dto = new ExcluirContaRequestDTO();
+        dto.setSenha("minhasenha123");
+
+        when(usuarioAutenticadoHelper.getUsuarioLogado()).thenReturn(usuario);
+        when(passwordEncoder.matches(dto.getSenha(), usuario.getSenha())).thenReturn(true);
+        when(usuarioRepository.save(usuario)).thenReturn(usuario);
+
+        usuarioService.excluirConta(dto);
+
+        assertThat(usuario.isAtivo()).isFalse();
+        assertThat(usuario.getDeletadoEm()).isNotNull();
+        verify(usuarioRepository).save(usuario);
+        verify(refreshTokenService).revogarTodos(usuario);
+    }
+
+    @Test
+    @DisplayName("excluirConta - deve lançar exceção quando senha incorreta")
+    void excluirConta_deveLancarExcecaoQuandoSenhaIncorreta() {
+        Usuario usuario = criarUsuarioMock();
+
+        ExcluirContaRequestDTO dto = new ExcluirContaRequestDTO();
+        dto.setSenha("senhaerrada");
+
+        when(usuarioAutenticadoHelper.getUsuarioLogado()).thenReturn(usuario);
+        when(passwordEncoder.matches(dto.getSenha(), usuario.getSenha())).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioService.excluirConta(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Senha incorreta");
+
+        verify(usuarioRepository, never()).save(any());
+        verify(refreshTokenService, never()).revogarTodos(any());
     }
 
     private Usuario criarUsuarioMock() {

@@ -69,4 +69,12 @@ public class UsuarioController {
     ) {
         return ResponseEntity.ok(usuarioService.alterarStatus(id, dto.getAtivo()));
     }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> excluirMinhaConta(
+            @Valid @RequestBody ExcluirContaRequestDTO dto
+    ) {
+        usuarioService.excluirConta(dto);
+        return ResponseEntity.noContent().build();
+    }
 }
