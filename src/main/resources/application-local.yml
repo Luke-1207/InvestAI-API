@@ -23,20 +23,20 @@ spring:
     caffeine:
       spec: maximumSize=500,expireAfterWrite=15m
   mail:
-    host: sandbox.smtp.mailtrap.io
-    port: 2525
-    username: d4d3a1b52ec5f1
-    password: be3077f1a5d175
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:local}
+    password: ${MAIL_PASSWORD:local}
     properties:
       mail:
         smtp:
-          auth: true
+          auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: true
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE :false}
 
 app:
   mail:
-    enabled: true
+    enabled: ${APP_MAIL_ENABLED:false}
     from: no-reply@investai.com
   frontend-url: http://localhost:4200
 
