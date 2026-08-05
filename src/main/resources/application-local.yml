@@ -22,6 +22,23 @@ spring:
     type: caffeine
     caffeine:
       spec: maximumSize=500,expireAfterWrite=15m
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:local}
+    password: ${MAIL_PASSWORD:local}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE :false}
+
+app:
+  mail:
+    enabled: ${APP_MAIL_ENABLED:false}
+    from: no-reply@investai.com
+  frontend-url: http://localhost:4200
 
 jwt:
   secret: ${JWT_SECRET:investai-local-dev-secret-super-segura-256bits}

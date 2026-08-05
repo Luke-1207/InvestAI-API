@@ -3,6 +3,11 @@ server:
     context-path: /investai-api
 
 spring:
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
+        default-page-size: 20
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -22,6 +27,26 @@ spring:
     type: caffeine
     caffeine:
       spec: maximumSize=500,expireAfterWrite=15m
+  mail:
+      host: ${MAIL_HOST:smtp.gmail.com}
+      port: ${MAIL_PORT:587}
+      username: ${MAIL_USERNAME}
+      password: ${MAIL_PASSWORD}
+      properties:
+        mail:
+          smtp:
+            auth: true
+            starttls:
+              enable: true
+
+app:
+  mail:
+    enabled: ${MAIL_ENABLED:true}
+    from: ${MAIL_FROM:no-reply@investai.com}
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+
+security:
+  reset-token-expiration-minutes: 30
 
 jwt:
   secret: ${JWT_SECRET}

@@ -2,6 +2,7 @@ package com.investai.api.module.auth.controller;
 
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.service.AuthService;
+import com.investai.api.module.auth.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/cadastro")
     public ResponseEntity<CadastroResponseDTO> cadastrar(
@@ -34,11 +36,37 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody LogoutRequestDTO dto
+    ) {
+        authService.logout(dto);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponseDTO> refresh(
             @Valid @RequestBody RefreshRequestDTO dto
     ) {
         LoginResponseDTO response = authService.refresh(dto);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/esqueci-senha")
+    public ResponseEntity<MensagemResponseDTO> esqueciSenha(
+            @Valid @RequestBody EsqueciSenhaRequestDTO dto
+    ) {
+        passwordResetService.solicitarRecuperacao(dto);
+        return ResponseEntity.ok(
+                new MensagemResponseDTO("Se o e-mail estiver cadastrado, você receberá instruções em instantes.")
+        );
+    }
+
+    @PostMapping("/redefinir-senha")
+    public ResponseEntity<Void> redefinirSenha(
+            @Valid @RequestBody RedefinirSenhaRequestDTO dto
+    ) {
+        passwordResetService.redefinirSenha(dto);
+        return ResponseEntity.noContent().build();
     }
 }
