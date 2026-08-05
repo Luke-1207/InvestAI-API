@@ -60,13 +60,9 @@ public class PasswordResetService {
         PasswordResetToken token = passwordResetTokenRepository.findByToken(dto.getToken())
                 .orElseThrow(() -> new BusinessException("Token inválido ou expirado"));
 
-        if (!token.estaValido()) {
-            throw new BusinessException("Token inválido ou expirado");
-        }
+        if (!token.estaValido()) throw new BusinessException("Token inválido ou expirado");
 
-        if (!dto.getNovaSenha().equals(dto.getConfirmarNovaSenha())) {
-            throw new BusinessException("As senhas não conferem");
-        }
+        if (!dto.getNovaSenha().equals(dto.getConfirmarNovaSenha())) throw new BusinessException("As senhas não conferem");
 
         Usuario usuario = token.getUsuario();
         usuario.setSenha(passwordEncoder.encode(dto.getNovaSenha()));
