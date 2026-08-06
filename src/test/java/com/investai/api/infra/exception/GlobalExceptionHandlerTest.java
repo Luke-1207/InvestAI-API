@@ -1,9 +1,11 @@
 package com.investai.api.infra.exception;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import java.lang.reflect.Method;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GlobalExceptionHandlerTest {
@@ -189,6 +192,18 @@ class GlobalExceptionHandlerTest {
                 "Senha obrigatória",
                 detalhes.get("senha")
         );
+    }
+
+    @Test
+    @DisplayName("handleMessageNotReadable - deve retornar 400 quando JSON malformado ou enum inválido")
+    void handleMessageNotReadable_deveRetornar400() throws Exception {
+        HttpMessageNotReadableException ex =
+                new HttpMessageNotReadableException("valor inválido para enum", (org.springframework.http.HttpInputMessage) null);
+
+        ResponseEntity<Map<String, Object>> response = handler.handleMessageNotReadable(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("erro", "Requisição malformada ou valor de campo inválido");
     }
 
     private void metodoFake(Object obj) {
