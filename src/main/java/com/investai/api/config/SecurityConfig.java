@@ -61,6 +61,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/v1/acoes").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.PUT, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.POST, "/api/v1/acoes").hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/acoes/**").hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/acoes/**").hasRole("GESTOR")
 
                         // Tudo mais precisa estar autenticado
                         .anyRequest().authenticated()
