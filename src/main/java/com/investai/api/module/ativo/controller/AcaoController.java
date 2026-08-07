@@ -3,7 +3,9 @@ package com.investai.api.module.ativo.controller;
 import com.investai.api.module.ativo.dto.AcaoResponseDTO;
 import com.investai.api.module.ativo.dto.AtualizarAcaoRequestDTO;
 import com.investai.api.module.ativo.dto.CadastroAcaoRequestDTO;
+import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
 import com.investai.api.module.ativo.service.AcaoService;
+import com.investai.api.module.ativo.service.CotacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class AcaoController {
 
     private final AcaoService acaoService;
+    private final CotacaoService cotacaoService;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -44,5 +47,10 @@ public class AcaoController {
     @GetMapping("/{id}")
     public ResponseEntity<AcaoResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(acaoService.buscarPorId(id));
+    }
+
+    @GetMapping("/{codigo}/cotacao")
+    public ResponseEntity<CotacaoResponseDTO> obterCotacao(@PathVariable String codigo) {
+        return ResponseEntity.ok(cotacaoService.obterCotacao(codigo));
     }
 }

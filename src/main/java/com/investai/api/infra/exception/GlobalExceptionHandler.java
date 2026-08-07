@@ -60,6 +60,13 @@ public class GlobalExceptionHandler {
                 .body(buildResponse(HttpStatus.BAD_REQUEST, "Requisição malformada ou valor de campo inválido", null));
     }
 
+    @ExceptionHandler(HgBrasilIndisponivelException.class)
+    public ResponseEntity<Map<String, Object>> handleHgBrasilIndisponivel(HgBrasilIndisponivelException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null));
+    }
+
     private Map<String, Object> buildResponse(HttpStatus status, String mensagem, Object detalhes) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());

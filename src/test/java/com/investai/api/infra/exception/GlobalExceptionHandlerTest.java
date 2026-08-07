@@ -206,6 +206,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsEntry("erro", "Requisição malformada ou valor de campo inválido");
     }
 
+    @Test
+    @DisplayName("handleHgBrasilIndisponivel - deve retornar 502 quando serviço externo indisponível")
+    void handleHgBrasilIndisponivel_deveRetornar502() {
+        HgBrasilIndisponivelException ex =
+                new HgBrasilIndisponivelException("Serviço de cotações indisponível no momento");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleHgBrasilIndisponivel(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).containsEntry("erro", "Serviço de cotações indisponível no momento");
+    }
+
     private void metodoFake(Object obj) {
     }
 }
