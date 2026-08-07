@@ -2,12 +2,15 @@ package com.investai.api.module.ativo.controller;
 
 import com.investai.api.infra.exception.ConflictException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
+import com.investai.api.infra.exception.HgBrasilIndisponivelException;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.ativo.dto.AcaoResponseDTO;
 import com.investai.api.module.ativo.dto.AtualizarAcaoRequestDTO;
 import com.investai.api.module.ativo.dto.CadastroAcaoRequestDTO;
+import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.service.AcaoService;
+import com.investai.api.module.ativo.service.CotacaoService;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -50,6 +54,9 @@ class AcaoControllerTest {
 
     @MockitoBean
     private UsuarioDetailsService usuarioDetailsService;
+
+    @MockitoBean
+    private CotacaoService cotacaoService;
 
     @Test
     @DisplayName("POST /acoes - deve cadastrar ativo com sucesso")
@@ -221,6 +228,51 @@ class AcaoControllerTest {
 
         mockMvc.perform(get("/v1/acoes/{id}", id))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/cotacao - deve retornar cotação com sucesso")
+    void obterCotacao_deveRetornar200ComSucesso() throws Exception {
+        CotacaoResponseDTO response = CotacaoResponseDTO.builder()
+                .codigo("TAEE3")
+                .nome("Taesa")
+                .setor("Energia Elétrica")
+                .preco(BigDecimal.valueOf(38.42))
+                .variacaoPercentual(BigDecimal.valueOf(1.25))
+                .dividendYield(BigDecimal.valueOf(6.8))
+                .precoValorPatrimonial(BigDecimal.valueOf(1.3))
+                .volume(24_300_000L)
+                .fonte("MOCK")
+                .build();
+
+        when(cotacaoService.obterCotacao("TAEE3")).thenReturn(response);
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/cotacao", "TAEE3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("TAEE3"))
+                .andExpect(jsonPath("$.preco").value(38.42))
+                .andExpect(jsonPath("$.fonte").value("MOCK"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/cotacao - deve retornar 404 quando ticker não encontrado")
+    void obterCotacao_deveRetornar404QuandoNaoEncontrado() throws Exception {
+        when(cotacaoService.obterCotacao("INEXISTENTE"))
+                .thenThrow(new ResourceNotFoundException("Nenhuma cotação encontrada para o ticker INEXISTENTE"));
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/cotacao", "INEXISTENTE"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/cotacao - deve retornar 502 quando HG Brasil está indisponível")
+    void obterCotacao_deveRetornar502QuandoIndisponivel() throws Exception {
+        when(cotacaoService.obterCotacao("TAEE3"))
+                .thenThrow(new HgBrasilIndisponivelException("Serviço de cotações indisponível no momento"));
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/cotacao", "TAEE3"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.erro").value("Serviço de cotações indisponível no momento"));
     }
 
     private AcaoResponseDTO criarResponseMock() {

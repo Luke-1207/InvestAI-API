@@ -35,15 +35,20 @@ spring:
       properties:
         mail:
           smtp:
-            auth: true
+            auth: ${MAIL_SMTP_AUTH:false}
             starttls:
-              enable: true
+              enable: ${MAIL_SMTP_STARTTLS_ENABLE :false}
 
 app:
   mail:
     enabled: ${MAIL_ENABLED:true}
     from: ${MAIL_FROM:no-reply@investai.com}
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
+
+hgbrasil:
+  api-key: ${HG_BRASIL_API_KEY:}
+  base-url: ${HG_BRASIL_BASE_URL:https://api.hgbrasil.com}
+  mock-enabled: ${HGBRASIL_MOCK_ENABLED:false}
 
 security:
   reset-token-expiration-minutes: 30
@@ -52,6 +57,3 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 900000
   refresh-expiration-days: 7
-
-#hgbrasil:
-#  api-key: ${HG_BRASIL_API_KEY}
