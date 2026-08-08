@@ -1,6 +1,8 @@
 package com.investai.api.module.ativo.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.investai.api.infra.exception.AtivoNaoEncontradoNaHgBrasilException;
+import com.investai.api.infra.exception.HgBrasilIndisponivelException;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.infra.hgbrasil.HgBrasilClient;
 import com.investai.api.infra.hgbrasil.dto.HgBrasilDividendsDTO;
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,8 +23,7 @@ import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CotacaoServiceTest {
@@ -31,6 +33,9 @@ class CotacaoServiceTest {
 
     @InjectMocks
     private CotacaoService cotacaoService;
+
+    @Mock
+    private Cache<String, CotacaoResponseDTO> cotacaoCaffeineCache;
 
     @BeforeEach
     void setUp() {
@@ -98,6 +103,68 @@ class CotacaoServiceTest {
 
         assertThat(resultado.getDividendYield()).isNull();
         assertThat(resultado.getPrecoValorPatrimonial()).isNull();
+    }
+
+    @Test
+    @DisplayName("obterCotacao - deve retornar do cache sem consultar o client quando disponível")
+    void obterCotacao_deveRetornarDoCacheQuandoDisponivel() {
+        CotacaoResponseDTO emCache = CotacaoResponseDTO.builder()
+                .codigo("TAEE3")
+                .preco(BigDecimal.valueOf(38.42))
+                .fonte("MOCK")
+                .build();
+
+        when(cotacaoCaffeineCache.getIfPresent("TAEE3")).thenReturn(emCache);
+
+        CotacaoResponseDTO resultado = cotacaoService.obterCotacao("taee3");
+
+        assertThat(resultado).isEqualTo(emCache);
+        verify(hgBrasilClient, never()).obterCotacao(anyString());
+    }
+
+    @Test
+    @DisplayName("obterCotacao - deve buscar na fonte e aquecer o cache quando houver cache miss")
+    void obterCotacao_deveBuscarNaFonteEAquecerCacheQuandoCacheMiss() {
+        when(cotacaoCaffeineCache.getIfPresent("TAEE3")).thenReturn(null);
+        when(hgBrasilClient.obterCotacao("TAEE3")).thenReturn(criarStockDTO());
+
+        cotacaoService.obterCotacao("TAEE3");
+
+        ArgumentCaptor<CotacaoResponseDTO> captor = ArgumentCaptor.forClass(CotacaoResponseDTO.class);
+        verify(cotacaoCaffeineCache).put(eq("TAEE3"), captor.capture());
+        assertThat(captor.getValue().getCodigo()).isEqualTo("TAEE3");
+    }
+
+    @Test
+    @DisplayName("atualizarCacheSilenciosamente - deve buscar e atualizar o cache com sucesso")
+    void atualizarCacheSilenciosamente_deveAtualizarCacheComSucesso() {
+        when(hgBrasilClient.obterCotacao("TAEE3")).thenReturn(criarStockDTO());
+
+        cotacaoService.atualizarCacheSilenciosamente("taee3");
+
+        verify(cotacaoCaffeineCache).put(eq("TAEE3"), any(CotacaoResponseDTO.class));
+    }
+
+    @Test
+    @DisplayName("atualizarCacheSilenciosamente - não deve propagar exceção quando ticker não encontrado")
+    void atualizarCacheSilenciosamente_naoDevePropagarExcecaoQuandoNaoEncontrado() {
+        when(hgBrasilClient.obterCotacao("INEXISTENTE"))
+                .thenThrow(new AtivoNaoEncontradoNaHgBrasilException("INEXISTENTE"));
+
+        cotacaoService.atualizarCacheSilenciosamente("INEXISTENTE");
+
+        verify(cotacaoCaffeineCache, never()).put(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("atualizarCacheSilenciosamente - não deve propagar exceção quando ocorre erro inesperado")
+    void atualizarCacheSilenciosamente_naoDevePropagarExcecaoQuandoErroInesperado() {
+        when(hgBrasilClient.obterCotacao("TAEE3"))
+                .thenThrow(new HgBrasilIndisponivelException("Serviço indisponível"));
+
+        cotacaoService.atualizarCacheSilenciosamente("TAEE3");
+
+        verify(cotacaoCaffeineCache, never()).put(anyString(), any());
     }
 
     private HgBrasilStockDTO criarStockDTO() {

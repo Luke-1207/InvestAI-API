@@ -49,6 +49,8 @@ hgbrasil:
   api-key: ${HG_BRASIL_API_KEY:}
   base-url: ${HG_BRASIL_BASE_URL:https://api.hgbrasil.com}
   mock-enabled: ${HGBRASIL_MOCK_ENABLED:false}
+  cache:
+    refresh-rate-ms: 900000 # 15 minutos
 
 security:
   reset-token-expiration-minutes: 30
