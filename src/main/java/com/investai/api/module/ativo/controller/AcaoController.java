@@ -1,13 +1,12 @@
 package com.investai.api.module.ativo.controller;
 
-import com.investai.api.module.ativo.dto.AcaoResponseDTO;
-import com.investai.api.module.ativo.dto.AtualizarAcaoRequestDTO;
-import com.investai.api.module.ativo.dto.CadastroAcaoRequestDTO;
-import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
+import com.investai.api.module.ativo.dto.*;
+import com.investai.api.module.ativo.service.AcaoListagemService;
 import com.investai.api.module.ativo.service.AcaoService;
 import com.investai.api.module.ativo.service.CotacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +20,7 @@ public class AcaoController {
 
     private final AcaoService acaoService;
     private final CotacaoService cotacaoService;
+    private final AcaoListagemService acaoListagemService;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -52,5 +52,12 @@ public class AcaoController {
     @GetMapping("/{codigo}/cotacao")
     public ResponseEntity<CotacaoResponseDTO> obterCotacao(@PathVariable String codigo) {
         return ResponseEntity.ok(cotacaoService.obterCotacao(codigo));
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<AcaoListagemResponseDTO>> listar(
+            @ModelAttribute AcaoListagemFiltroDTO filtro
+    ) {
+        return ResponseEntity.ok(acaoListagemService.listar(filtro));
     }
 }

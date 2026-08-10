@@ -4,6 +4,7 @@ import com.investai.api.config.SecurityConfig;
 import com.investai.api.module.ativo.dto.AcaoResponseDTO;
 import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
 import com.investai.api.module.ativo.entity.TipoAtivo;
+import com.investai.api.module.ativo.service.AcaoListagemService;
 import com.investai.api.module.ativo.service.AcaoService;
 import com.investai.api.module.ativo.service.CotacaoService;
 import com.investai.api.module.auth.entity.Role;
@@ -46,6 +47,9 @@ class AcaoControllerSecurityTest {
 
     @MockitoBean
     private CotacaoService cotacaoService;
+
+    @MockitoBean
+    private AcaoListagemService acaoListagemService;
 
     private String tokenUsuario;
     private String tokenGestor;
@@ -187,6 +191,24 @@ class AcaoControllerSecurityTest {
                 .thenReturn(CotacaoResponseDTO.builder().codigo("TAEE3").build());
 
         mockMvc.perform(get("/v1/acoes/{codigo}/cotacao", "TAEE3")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /acoes - deve retornar 401 sem token")
+    void listar_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/acoes"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /acoes - deve permitir usuário comum autenticado")
+    void listar_devePermitirUsuarioComum() throws Exception {
+        when(acaoListagemService.listar(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of()));
+
+        mockMvc.perform(get("/v1/acoes")
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
     }

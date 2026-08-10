@@ -4,21 +4,22 @@ import com.investai.api.infra.exception.ConflictException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
 import com.investai.api.infra.exception.HgBrasilIndisponivelException;
 import com.investai.api.infra.exception.ResourceNotFoundException;
-import com.investai.api.module.ativo.dto.AcaoResponseDTO;
-import com.investai.api.module.ativo.dto.AtualizarAcaoRequestDTO;
-import com.investai.api.module.ativo.dto.CadastroAcaoRequestDTO;
-import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
+import com.investai.api.module.ativo.dto.*;
 import com.investai.api.module.ativo.entity.TipoAtivo;
+import com.investai.api.module.ativo.service.AcaoListagemService;
 import com.investai.api.module.ativo.service.AcaoService;
 import com.investai.api.module.ativo.service.CotacaoService;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,8 +27,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -57,6 +60,9 @@ class AcaoControllerTest {
 
     @MockitoBean
     private CotacaoService cotacaoService;
+
+    @MockitoBean
+    private AcaoListagemService acaoListagemService;
 
     @Test
     @DisplayName("POST /acoes - deve cadastrar ativo com sucesso")
@@ -273,6 +279,59 @@ class AcaoControllerTest {
         mockMvc.perform(get("/v1/acoes/{codigo}/cotacao", "TAEE3"))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.erro").value("Serviço de cotações indisponível no momento"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes - deve retornar página de ativos com sucesso")
+    void listar_deveRetornarPaginaComSucesso() throws Exception {
+        AcaoListagemResponseDTO dto = AcaoListagemResponseDTO.builder()
+                .id(UUID.randomUUID())
+                .codigo("TAEE3")
+                .nome("Taesa")
+                .tipo(TipoAtivo.ACAO)
+                .setor("Energia Elétrica")
+                .preco(BigDecimal.valueOf(38.42))
+                .dividendYield(BigDecimal.valueOf(6.8))
+                .cotacaoDisponivel(true)
+                .build();
+
+        Page<AcaoListagemResponseDTO> page = new PageImpl<>(List.of(dto));
+
+        when(acaoListagemService.listar(any(AcaoListagemFiltroDTO.class))).thenReturn(page);
+
+        mockMvc.perform(get("/v1/acoes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].codigo").value("TAEE3"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes - deve repassar os filtros de query string corretamente")
+    void listar_deveRepassarFiltrosDeQueryStringCorretamente() throws Exception {
+        when(acaoListagemService.listar(any(AcaoListagemFiltroDTO.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        mockMvc.perform(get("/v1/acoes")
+                        .param("tipo", "ACAO")
+                        .param("setor", "Energia")
+                        .param("dyMinimo", "6")
+                        .param("ordenarPor", "DY")
+                        .param("ordem", "DESC")
+                        .param("pagina", "2")
+                        .param("tamanho", "5"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<AcaoListagemFiltroDTO> captor = ArgumentCaptor.forClass(AcaoListagemFiltroDTO.class);
+        verify(acaoListagemService).listar(captor.capture());
+
+        AcaoListagemFiltroDTO filtroCapturado = captor.getValue();
+        assertThat(filtroCapturado.getTipo()).containsExactly(TipoAtivo.ACAO);
+        assertThat(filtroCapturado.getSetor()).isEqualTo("Energia");
+        assertThat(filtroCapturado.getDyMinimo()).isEqualByComparingTo(BigDecimal.valueOf(6));
+        assertThat(filtroCapturado.getOrdenarPor()).isEqualTo(OrdenarPorAcao.DY);
+        assertThat(filtroCapturado.getOrdem()).isEqualTo(OrdemDTO.DESC);
+        assertThat(filtroCapturado.getPagina()).isEqualTo(2);
+        assertThat(filtroCapturado.getTamanho()).isEqualTo(5);
     }
 
     private AcaoResponseDTO criarResponseMock() {
