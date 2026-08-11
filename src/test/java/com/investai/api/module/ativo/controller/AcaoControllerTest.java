@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +66,9 @@ class AcaoControllerTest {
 
     @MockitoBean
     private HistoricoService historicoService;
+
+    @MockitoBean
+    private AcaoDetalheService acaoDetalheService;
 
     @Test
     @DisplayName("POST /acoes - deve cadastrar ativo com sucesso")
@@ -441,6 +445,77 @@ class AcaoControllerTest {
 
         mockMvc.perform(get("/v1/acoes/{codigo}/historico", "INEXISTENTE").param("periodo", "1M"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/detalhe - deve retornar detalhe completo com sucesso")
+    void obterDetalhe_deveRetornar200ComSucesso() throws Exception {
+        AcaoDetalheResponseDTO response = AcaoDetalheResponseDTO.builder()
+                .codigo("TAEE3")
+                .nome("Taesa")
+                .cotacaoDisponivel(true)
+                .preco(BigDecimal.valueOf(38.42))
+                .precoLucro(null)
+                .minimo52Semanas(BigDecimal.valueOf(30.0))
+                .maximo52Semanas(BigDecimal.valueOf(45.0))
+                .periodoGrafico("1A")
+                .pontosGrafico(List.of())
+                .glossario(Map.of("DY", "texto explicativo"))
+                .build();
+
+        when(acaoDetalheService.obterDetalhe("TAEE3", "1A")).thenReturn(response);
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "TAEE3").param("periodoGrafico", "1A"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("TAEE3"))
+                .andExpect(jsonPath("$.precoLucro").doesNotExist())
+                .andExpect(jsonPath("$.minimo52Semanas").value(30.0))
+                .andExpect(jsonPath("$.glossario.DY").exists());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/detalhe - deve usar 1A como período padrão quando não informado")
+    void obterDetalhe_deveUsarPeriodoPadraoQuandoNaoInformado() throws Exception {
+        when(acaoDetalheService.obterDetalhe("TAEE3", "1A"))
+                .thenReturn(AcaoDetalheResponseDTO.builder().codigo("TAEE3").periodoGrafico("1A").build());
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "TAEE3"))
+                .andExpect(status().isOk());
+
+        verify(acaoDetalheService).obterDetalhe("TAEE3", "1A");
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/detalhe - deve retornar 404 quando ativo não encontrado")
+    void obterDetalhe_deveRetornar404QuandoNaoEncontrado() throws Exception {
+        when(acaoDetalheService.obterDetalhe("NAOEXISTE", "1A"))
+                .thenThrow(new ResourceNotFoundException("Ativo não cadastrado ou inativo: NAOEXISTE"));
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "NAOEXISTE").param("periodoGrafico", "1A"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/detalhe - deve retornar 422 quando período do gráfico inválido")
+    void obterDetalhe_deveRetornar422QuandoPeriodoInvalido() throws Exception {
+        when(acaoDetalheService.obterDetalhe("TAEE3", "2Y"))
+                .thenThrow(new BusinessException("Período inválido: 2Y. Valores aceitos: 1S, 1M, 3M, 6M, 1A"));
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "TAEE3").param("periodoGrafico", "2Y"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{id} - busca simples por ID deve continuar funcionando normalmente")
+    void buscarPorId_deveContinuarFuncionandoAposMudancaDeRota() throws Exception {
+        UUID id = UUID.randomUUID();
+        AcaoResponseDTO response = criarResponseMock();
+
+        when(acaoService.buscarPorId(id)).thenReturn(response);
+
+        mockMvc.perform(get("/v1/acoes/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("TAEE3"));
     }
 
     private AcaoResponseDTO criarResponseMock() {
