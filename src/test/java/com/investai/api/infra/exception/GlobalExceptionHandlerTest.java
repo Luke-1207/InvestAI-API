@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -216,6 +217,18 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(response.getBody()).containsEntry("erro", "Serviço de cotações indisponível no momento");
+    }
+
+    @Test
+    @DisplayName("handleMissingParam - deve retornar 400 quando parâmetro obrigatório ausente")
+    void handleMissingParam_deveRetornar400() throws Exception {
+        MissingServletRequestParameterException ex =
+                new MissingServletRequestParameterException("codigos", "List");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleMissingParam(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("erro", "Parâmetro obrigatório ausente: codigos");
     }
 
     private void metodoFake(Object obj) {

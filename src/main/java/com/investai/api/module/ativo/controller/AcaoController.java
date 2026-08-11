@@ -3,6 +3,7 @@ package com.investai.api.module.ativo.controller;
 import com.investai.api.module.ativo.dto.*;
 import com.investai.api.module.ativo.service.AcaoListagemService;
 import com.investai.api.module.ativo.service.AcaoService;
+import com.investai.api.module.ativo.service.ComparacaoService;
 import com.investai.api.module.ativo.service.CotacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -21,6 +23,7 @@ public class AcaoController {
     private final AcaoService acaoService;
     private final CotacaoService cotacaoService;
     private final AcaoListagemService acaoListagemService;
+    private final ComparacaoService comparacaoService;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -59,5 +62,12 @@ public class AcaoController {
             @ModelAttribute AcaoListagemFiltroDTO filtro
     ) {
         return ResponseEntity.ok(acaoListagemService.listar(filtro));
+    }
+
+    @GetMapping("/comparar")
+    public ResponseEntity<ComparacaoResponseDTO> comparar(
+            @RequestParam List<String> codigos
+    ) {
+        return ResponseEntity.ok(comparacaoService.comparar(codigos));
     }
 }
