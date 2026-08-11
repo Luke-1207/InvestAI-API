@@ -1,16 +1,20 @@
 package com.investai.api.infra.exception;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.lang.reflect.Method;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GlobalExceptionHandlerTest {
@@ -189,6 +193,42 @@ class GlobalExceptionHandlerTest {
                 "Senha obrigatória",
                 detalhes.get("senha")
         );
+    }
+
+    @Test
+    @DisplayName("handleMessageNotReadable - deve retornar 400 quando JSON malformado ou enum inválido")
+    void handleMessageNotReadable_deveRetornar400() throws Exception {
+        HttpMessageNotReadableException ex =
+                new HttpMessageNotReadableException("valor inválido para enum", (org.springframework.http.HttpInputMessage) null);
+
+        ResponseEntity<Map<String, Object>> response = handler.handleMessageNotReadable(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("erro", "Requisição malformada ou valor de campo inválido");
+    }
+
+    @Test
+    @DisplayName("handleHgBrasilIndisponivel - deve retornar 502 quando serviço externo indisponível")
+    void handleHgBrasilIndisponivel_deveRetornar502() {
+        HgBrasilIndisponivelException ex =
+                new HgBrasilIndisponivelException("Serviço de cotações indisponível no momento");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleHgBrasilIndisponivel(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).containsEntry("erro", "Serviço de cotações indisponível no momento");
+    }
+
+    @Test
+    @DisplayName("handleMissingParam - deve retornar 400 quando parâmetro obrigatório ausente")
+    void handleMissingParam_deveRetornar400() throws Exception {
+        MissingServletRequestParameterException ex =
+                new MissingServletRequestParameterException("codigos", "List");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleMissingParam(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("erro", "Parâmetro obrigatório ausente: codigos");
     }
 
     private void metodoFake(Object obj) {
