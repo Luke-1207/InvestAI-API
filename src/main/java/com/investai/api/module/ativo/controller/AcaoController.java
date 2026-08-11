@@ -1,10 +1,7 @@
 package com.investai.api.module.ativo.controller;
 
 import com.investai.api.module.ativo.dto.*;
-import com.investai.api.module.ativo.service.AcaoListagemService;
-import com.investai.api.module.ativo.service.AcaoService;
-import com.investai.api.module.ativo.service.ComparacaoService;
-import com.investai.api.module.ativo.service.CotacaoService;
+import com.investai.api.module.ativo.service.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,6 +21,7 @@ public class AcaoController {
     private final CotacaoService cotacaoService;
     private final AcaoListagemService acaoListagemService;
     private final ComparacaoService comparacaoService;
+    private final HistoricoService historicoService;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -69,5 +67,13 @@ public class AcaoController {
             @RequestParam List<String> codigos
     ) {
         return ResponseEntity.ok(comparacaoService.comparar(codigos));
+    }
+
+    @GetMapping("/{codigo}/historico")
+    public ResponseEntity<HistoricoPrecoResponseDTO> obterHistorico(
+            @PathVariable String codigo,
+            @RequestParam(defaultValue = "1M") String periodo
+    ) {
+        return ResponseEntity.ok(historicoService.obterHistorico(codigo, periodo));
     }
 }

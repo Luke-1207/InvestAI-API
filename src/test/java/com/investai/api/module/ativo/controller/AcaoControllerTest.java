@@ -3,10 +3,7 @@ package com.investai.api.module.ativo.controller;
 import com.investai.api.infra.exception.*;
 import com.investai.api.module.ativo.dto.*;
 import com.investai.api.module.ativo.entity.TipoAtivo;
-import com.investai.api.module.ativo.service.AcaoListagemService;
-import com.investai.api.module.ativo.service.AcaoService;
-import com.investai.api.module.ativo.service.ComparacaoService;
-import com.investai.api.module.ativo.service.CotacaoService;
+import com.investai.api.module.ativo.service.*;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -64,6 +62,9 @@ class AcaoControllerTest {
 
     @MockitoBean
     private ComparacaoService comparacaoService;
+
+    @MockitoBean
+    private HistoricoService historicoService;
 
     @Test
     @DisplayName("POST /acoes - deve cadastrar ativo com sucesso")
@@ -381,6 +382,65 @@ class AcaoControllerTest {
         mockMvc.perform(get("/v1/acoes/comparar"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erro").value("Parâmetro obrigatório ausente: codigos"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/historico - deve retornar série com sucesso")
+    void obterHistorico_deveRetornar200ComSucesso() throws Exception {
+        HistoricoPrecoResponseDTO response = HistoricoPrecoResponseDTO.builder()
+                .codigo("TAEE3")
+                .periodo("1M")
+                .pontos(List.of(
+                        PontoHistoricoDTO.builder()
+                                .data(LocalDate.now())
+                                .abertura(BigDecimal.valueOf(38.0))
+                                .fechamento(BigDecimal.valueOf(38.42))
+                                .maxima(BigDecimal.valueOf(38.6))
+                                .minima(BigDecimal.valueOf(37.9))
+                                .volume(100_000L)
+                                .build()
+                ))
+                .build();
+
+        when(historicoService.obterHistorico("TAEE3", "1M")).thenReturn(response);
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/historico", "TAEE3").param("periodo", "1M"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("TAEE3"))
+                .andExpect(jsonPath("$.periodo").value("1M"))
+                .andExpect(jsonPath("$.pontos").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/historico - deve usar período padrão 1M quando não informado")
+    void obterHistorico_deveUsarPeriodoPadraoQuandoNaoInformado() throws Exception {
+        when(historicoService.obterHistorico("TAEE3", "1M"))
+                .thenReturn(HistoricoPrecoResponseDTO.builder().codigo("TAEE3").periodo("1M").pontos(List.of()).build());
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/historico", "TAEE3"))
+                .andExpect(status().isOk());
+
+        verify(historicoService).obterHistorico("TAEE3", "1M");
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/historico - deve retornar 422 quando período inválido")
+    void obterHistorico_deveRetornar422QuandoPeriodoInvalido() throws Exception {
+        when(historicoService.obterHistorico("TAEE3", "2Y"))
+                .thenThrow(new BusinessException("Período inválido: 2Y. Valores aceitos: 1S, 1M, 3M, 6M, 1A"));
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/historico", "TAEE3").param("periodo", "2Y"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/historico - deve retornar 404 quando ticker não encontrado")
+    void obterHistorico_deveRetornar404QuandoTickerNaoEncontrado() throws Exception {
+        when(historicoService.obterHistorico("INEXISTENTE", "1M"))
+                .thenThrow(new ResourceNotFoundException("Nenhum histórico encontrado para o ticker INEXISTENTE"));
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/historico", "INEXISTENTE").param("periodo", "1M"))
+                .andExpect(status().isNotFound());
     }
 
     private AcaoResponseDTO criarResponseMock() {
