@@ -3,16 +3,17 @@ package com.investai.api.infra.hgbrasil;
 import com.investai.api.infra.exception.AtivoNaoEncontradoNaHgBrasilException;
 import com.investai.api.infra.hgbrasil.dto.HgBrasilDividendsDTO;
 import com.investai.api.infra.hgbrasil.dto.HgBrasilFinancialsDTO;
+import com.investai.api.infra.hgbrasil.dto.HgBrasilHistoricalPointDTO;
 import com.investai.api.infra.hgbrasil.dto.HgBrasilStockDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Simula a API da HG Brasil enquanto o plano pago (Member Premium) não é contratado.
@@ -66,6 +67,48 @@ public class HgBrasilMockClient implements HgBrasilClient {
 
         log.debug("[MOCK] Gerando cotação sintética determinística para {}", tickerNormalizado);
         return gerarFixtureDeterministica(tickerNormalizado);
+    }
+
+    @Override
+    public List<HgBrasilHistoricalPointDTO> obterHistorico(String ticker, int diasAtras) {
+        String tickerNormalizado = ticker.toUpperCase().trim();
+
+        if ("INVALIDO".equals(tickerNormalizado) || tickerNormalizado.isBlank()) {
+            throw new AtivoNaoEncontradoNaHgBrasilException(tickerNormalizado);
+        }
+
+        log.debug("[MOCK] Gerando série histórica sintética para {} ({} dias)", tickerNormalizado, diasAtras);
+        return gerarSerieDeterministica(tickerNormalizado, diasAtras);
+    }
+
+    private List<HgBrasilHistoricalPointDTO> gerarSerieDeterministica(String ticker, int diasAtras) {
+        Random random = new Random(ticker.hashCode());
+        double preco = 10 + random.nextDouble() * 90;
+
+        List<HgBrasilHistoricalPointDTO> pontos = new ArrayList<>();
+        LocalDate dataInicial = LocalDate.now().minusDays(diasAtras);
+
+        for (int i = 0; i <= diasAtras; i++) {
+            double variacaoDia = (random.nextDouble() * 4) - 2;
+            double abertura = preco;
+            double fechamento = round2(preco * (1 + variacaoDia / 100));
+            double maxima = round2(Math.max(abertura, fechamento) * (1 + random.nextDouble() * 0.01));
+            double minima = round2(Math.min(abertura, fechamento) * (1 - random.nextDouble() * 0.01));
+            long volume = 50_000L + random.nextInt(500_000);
+
+            pontos.add(HgBrasilHistoricalPointDTO.builder()
+                    .data(dataInicial.plusDays(i))
+                    .abertura(BigDecimal.valueOf(round2(abertura)))
+                    .fechamento(BigDecimal.valueOf(fechamento))
+                    .maxima(BigDecimal.valueOf(maxima))
+                    .minima(BigDecimal.valueOf(minima))
+                    .volume(volume)
+                    .build());
+
+            preco = fechamento;
+        }
+
+        return pontos;
     }
 
     private HgBrasilStockDTO gerarFixtureDeterministica(String ticker) {

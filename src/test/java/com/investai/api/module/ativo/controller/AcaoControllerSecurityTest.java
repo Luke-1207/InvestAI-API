@@ -3,11 +3,9 @@ package com.investai.api.module.ativo.controller;
 import com.investai.api.config.SecurityConfig;
 import com.investai.api.module.ativo.dto.AcaoResponseDTO;
 import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
+import com.investai.api.module.ativo.dto.HistoricoPrecoResponseDTO;
 import com.investai.api.module.ativo.entity.TipoAtivo;
-import com.investai.api.module.ativo.service.AcaoListagemService;
-import com.investai.api.module.ativo.service.AcaoService;
-import com.investai.api.module.ativo.service.ComparacaoService;
-import com.investai.api.module.ativo.service.CotacaoService;
+import com.investai.api.module.ativo.service.*;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
@@ -24,8 +22,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,6 +54,9 @@ class AcaoControllerSecurityTest {
 
     @MockitoBean
     private ComparacaoService comparacaoService;
+
+    @MockitoBean
+    private HistoricoService historicoService;
 
     private String tokenUsuario;
     private String tokenGestor;
@@ -234,6 +237,25 @@ class AcaoControllerSecurityTest {
 
         mockMvc.perform(get("/v1/acoes/comparar")
                         .param("codigos", "TAEE3,PETR4")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/historico - deve retornar 401 sem token")
+    void obterHistorico_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/acoes/{codigo}/historico", "TAEE3").param("periodo", "1M"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/historico - deve permitir usuário comum autenticado")
+    void obterHistorico_devePermitirUsuarioComum() throws Exception {
+        when(historicoService.obterHistorico(anyString(), anyString()))
+                .thenReturn(HistoricoPrecoResponseDTO.builder().codigo("TAEE3").periodo("1M").pontos(List.of()).build());
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/historico", "TAEE3")
+                        .param("periodo", "1M")
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
     }
