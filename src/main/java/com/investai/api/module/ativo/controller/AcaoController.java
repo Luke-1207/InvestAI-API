@@ -22,6 +22,7 @@ public class AcaoController {
     private final AcaoListagemService acaoListagemService;
     private final ComparacaoService comparacaoService;
     private final HistoricoService historicoService;
+    private final AcaoDetalheService acaoDetalheService;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -48,6 +49,14 @@ public class AcaoController {
     @GetMapping("/{id}")
     public ResponseEntity<AcaoResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(acaoService.buscarPorId(id));
+    }
+
+    @GetMapping("/{codigo}/detalhe")
+    public ResponseEntity<AcaoDetalheResponseDTO> obterDetalhe(
+            @PathVariable String codigo,
+            @RequestParam(required = false, defaultValue = "1A") String periodoGrafico
+    ) {
+        return ResponseEntity.ok(acaoDetalheService.obterDetalhe(codigo, periodoGrafico));
     }
 
     @GetMapping("/{codigo}/cotacao")

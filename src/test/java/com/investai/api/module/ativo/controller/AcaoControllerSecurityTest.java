@@ -58,6 +58,9 @@ class AcaoControllerSecurityTest {
     @MockitoBean
     private HistoricoService historicoService;
 
+    @MockitoBean
+    private AcaoDetalheService acaoDetalheService;
+
     private String tokenUsuario;
     private String tokenGestor;
 
@@ -256,6 +259,25 @@ class AcaoControllerSecurityTest {
 
         mockMvc.perform(get("/v1/acoes/{codigo}/historico", "TAEE3")
                         .param("periodo", "1M")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/detalhe - deve retornar 401 sem token")
+    void obterDetalhe_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "TAEE3"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/detalhe - deve permitir usuário comum autenticado")
+    void obterDetalhe_devePermitirUsuarioComum() throws Exception {
+        when(acaoDetalheService.obterDetalhe(anyString(), anyString()))
+                .thenReturn(com.investai.api.module.ativo.dto.AcaoDetalheResponseDTO.builder()
+                        .codigo("TAEE3").build());
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "TAEE3")
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
     }
