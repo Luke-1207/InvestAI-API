@@ -1,13 +1,11 @@
 package com.investai.api.module.ativo.controller;
 
-import com.investai.api.infra.exception.ConflictException;
-import com.investai.api.infra.exception.GlobalExceptionHandler;
-import com.investai.api.infra.exception.HgBrasilIndisponivelException;
-import com.investai.api.infra.exception.ResourceNotFoundException;
+import com.investai.api.infra.exception.*;
 import com.investai.api.module.ativo.dto.*;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.service.AcaoListagemService;
 import com.investai.api.module.ativo.service.AcaoService;
+import com.investai.api.module.ativo.service.ComparacaoService;
 import com.investai.api.module.ativo.service.CotacaoService;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtUtil;
@@ -63,6 +61,9 @@ class AcaoControllerTest {
 
     @MockitoBean
     private AcaoListagemService acaoListagemService;
+
+    @MockitoBean
+    private ComparacaoService comparacaoService;
 
     @Test
     @DisplayName("POST /acoes - deve cadastrar ativo com sucesso")
@@ -332,6 +333,54 @@ class AcaoControllerTest {
         assertThat(filtroCapturado.getOrdem()).isEqualTo(OrdemDTO.DESC);
         assertThat(filtroCapturado.getPagina()).isEqualTo(2);
         assertThat(filtroCapturado.getTamanho()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("GET /acoes/comparar - deve retornar comparação com sucesso")
+    void comparar_deveRetornar200ComSucesso() throws Exception {
+        ComparacaoResponseDTO response = ComparacaoResponseDTO.builder()
+                .ativos(List.of(
+                        AcaoListagemResponseDTO.builder().codigo("TAEE3").nome("Taesa").cotacaoDisponivel(true).build(),
+                        AcaoListagemResponseDTO.builder().codigo("PETR4").nome("Petrobras").cotacaoDisponivel(true).build()
+                ))
+                .build();
+
+        when(comparacaoService.comparar(List.of("TAEE3", "PETR4"))).thenReturn(response);
+
+        mockMvc.perform(get("/v1/acoes/comparar").param("codigos", "TAEE3,PETR4"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativos").isArray())
+                .andExpect(jsonPath("$.ativos[0].codigo").value("TAEE3"))
+                .andExpect(jsonPath("$.ativos[1].codigo").value("PETR4"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/comparar - deve retornar 422 quando menos de dois tickers")
+    void comparar_deveRetornar422QuandoMenosDeDoisTickers() throws Exception {
+        when(comparacaoService.comparar(List.of("TAEE3")))
+                .thenThrow(new BusinessException("Informe pelo menos 2 tickers para comparar"));
+
+        mockMvc.perform(get("/v1/acoes/comparar").param("codigos", "TAEE3"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro").value("Informe pelo menos 2 tickers para comparar"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/comparar - deve retornar 404 quando ativo não encontrado")
+    void comparar_deveRetornar404QuandoAtivoNaoEncontrado() throws Exception {
+        when(comparacaoService.comparar(List.of("TAEE3", "NAOEXISTE")))
+                .thenThrow(new ResourceNotFoundException("Ativo não cadastrado ou inativo: NAOEXISTE"));
+
+        mockMvc.perform(get("/v1/acoes/comparar").param("codigos", "TAEE3,NAOEXISTE"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/comparar - deve retornar 400 quando parâmetro codigos ausente")
+    void comparar_deveRetornar400QuandoParametroAusente() throws Exception {
+        mockMvc.perform(get("/v1/acoes/comparar"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("Parâmetro obrigatório ausente: codigos"));
     }
 
     private AcaoResponseDTO criarResponseMock() {
