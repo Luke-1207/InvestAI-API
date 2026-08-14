@@ -48,7 +48,7 @@ public class PerfilInvestidor {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "setores_preferidos", columnDefinition = "jsonb")
-    private List<String> setoresPreferidos;
+    private List<SetorPreferido> setoresPreferidos;
 
     @Column(name = "perfil_preenchido", nullable = false)
     private boolean perfilPreenchido = false;
