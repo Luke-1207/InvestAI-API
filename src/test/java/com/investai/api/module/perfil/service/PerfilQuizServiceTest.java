@@ -36,6 +36,9 @@ class PerfilQuizServiceTest {
     @Mock
     private PerfilInvestidorRepository perfilInvestidorRepository;
 
+    @Mock
+    private ResumoPerfilService resumoPerfilService;
+
     private static final UUID PERGUNTA_OBJETIVO_ID = UUID.randomUUID();
     private static final UUID OPCAO_OBJETIVO_RENDA_ID = UUID.randomUUID();
     private static final UUID OPCAO_OBJETIVO_CRESCIMENTO_ID = UUID.randomUUID();
@@ -150,6 +153,7 @@ class PerfilQuizServiceTest {
         when(quizPerguntaRepository.findAllByAtivaTrueOrderByOrdemAsc()).thenReturn(criarPerguntasCompletas());
         when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfilVazioMock()));
         when(perfilInvestidorRepository.save(any(PerfilInvestidor.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(resumoPerfilService.gerarResumoIA(any())).thenReturn("Você busca crescimento do patrimônio no longo prazo, com perfil moderado.");
 
         SubmeterQuizRequestDTO dto = montarRequestDTO(
                 resposta(PERGUNTA_OBJETIVO_ID, OPCAO_OBJETIVO_CRESCIMENTO_ID),
@@ -165,11 +169,12 @@ class PerfilQuizServiceTest {
         assertThat(response.getObjetivoFinanceiro().getValor()).isEqualTo("CRESCIMENTO_PATRIMONIO");
         assertThat(response.getHorizonteInvestimento().getValor()).isEqualTo("LONGO_PRAZO");
         assertThat(response.getPerfilRisco().getValor()).isEqualTo("MODERADO");
-        assertThat(response.getResumoIA()).contains("crescimento do patrimônio", "longo prazo", "moderado");
+        assertThat(response.getResumoIA()).isEqualTo("Você busca crescimento do patrimônio no longo prazo, com perfil moderado.");
 
         ArgumentCaptor<PerfilInvestidor> captor = ArgumentCaptor.forClass(PerfilInvestidor.class);
         verify(perfilInvestidorRepository).save(captor.capture());
         PerfilInvestidor salvo = captor.getValue();
+        verify(resumoPerfilService).gerarResumoIA(salvo);
 
         assertThat(salvo.getObjetivo()).isEqualTo("CRESCIMENTO_PATRIMONIO");
         assertThat(salvo.getHorizonte()).isEqualTo("LONGO_PRAZO");
