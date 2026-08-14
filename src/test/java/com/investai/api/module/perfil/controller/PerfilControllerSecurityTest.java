@@ -5,15 +5,18 @@ import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.module.perfil.dto.QuizResponseDTO;
+import com.investai.api.module.perfil.dto.QuizSubmissaoResponseDTO;
 import com.investai.api.module.perfil.service.PerfilQuizService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
+import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -23,6 +26,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = PerfilController.class)
@@ -40,6 +44,9 @@ class PerfilControllerSecurityTest {
 
     @MockitoBean
     private UsuarioDetailsService usuarioDetailsService;
+
+    @MockitoBean
+    private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
     private String tokenUsuario;
     private String tokenGestor;
@@ -105,6 +112,37 @@ class PerfilControllerSecurityTest {
 
         mockMvc.perform(get("/v1/perfil/quiz")
                         .header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /perfil/quiz - deve retornar 401 sem token")
+    void submeterQuiz_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(put("/v1/perfil/quiz")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"respostas\": [] }"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PUT /perfil/quiz - deve permitir usuário comum autenticado")
+    void submeterQuiz_devePermitirUsuarioComum() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+        when(perfilQuizService.submeterQuiz(any(), any()))
+                .thenReturn(QuizSubmissaoResponseDTO.builder().build());
+
+        String body = """
+                {
+                  "respostas": [
+                    { "perguntaId": "%s", "opcaoIds": ["%s"] }
+                  ]
+                }
+                """.formatted(UUID.randomUUID(), UUID.randomUUID());
+
+        mockMvc.perform(put("/v1/perfil/quiz")
+                        .header("Authorization", "Bearer " + tokenUsuario)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
                 .andExpect(status().isOk());
     }
 }
