@@ -21,6 +21,7 @@ public class PerfilQuizService {
 
     private final QuizPerguntaRepository quizPerguntaRepository;
     private final PerfilInvestidorRepository perfilInvestidorRepository;
+    private final ResumoPerfilService resumoPerfilService;
 
     private static final BigDecimal VALOR_DISPONIVEL_FAIXA_ABERTA = BigDecimal.valueOf(15000);
 
@@ -81,7 +82,7 @@ public class PerfilQuizService {
 
         perfilInvestidorRepository.save(perfil);
 
-        return montarResposta(acumulado);
+        return montarResposta(acumulado, perfil);
     }
 
     private void validarPerguntasObrigatoriasRespondidas(List<QuizPergunta> perguntasAtivas, List<RespostaQuizDTO> respostas) {
@@ -132,7 +133,7 @@ public class PerfilQuizService {
         return min.add(max).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
     }
 
-    private QuizSubmissaoResponseDTO montarResposta(PerfilAcumulado acumulado) {
+    private QuizSubmissaoResponseDTO montarResposta(PerfilAcumulado acumulado, PerfilInvestidor perfil) {
         return QuizSubmissaoResponseDTO.builder()
                 .perfilRisco(ValorDescritoDTO.builder()
                         .valor(acumulado.perfilRisco.name())
@@ -146,27 +147,8 @@ public class PerfilQuizService {
                         .valor(acumulado.horizonte.name())
                         .descricao(DescricoesPerfil.HORIZONTE_INVESTIMENTO.get(acumulado.horizonte))
                         .build())
-                .resumoIA(gerarResumoIA(acumulado.objetivo, acumulado.horizonte, acumulado.perfilRisco))
+                .resumoIA(resumoPerfilService.gerarResumoIA(perfil))
                 .build();
-    }
-
-    private String gerarResumoIA(ObjetivoFinanceiro objetivo, HorizonteInvestimento horizonte, PerfilRisco perfilRisco) {
-        String objetivoTexto = switch (objetivo) {
-            case RENDA_PASSIVA -> "renda passiva";
-            case CRESCIMENTO_PATRIMONIO -> "crescimento do patrimônio";
-            case PRESERVAR_CAPITAL -> "preservar o capital";
-        };
-        String horizonteTexto = switch (horizonte) {
-            case CURTO_PRAZO -> "curto prazo";
-            case MEDIO_PRAZO -> "médio prazo";
-            case LONGO_PRAZO -> "longo prazo";
-        };
-        String perfilTexto = switch (perfilRisco) {
-            case CONSERVADOR -> "conservador";
-            case MODERADO -> "moderado";
-            case ARROJADO -> "arrojado";
-        };
-        return "Você busca %s no %s, com perfil %s.".formatted(objetivoTexto, horizonteTexto, perfilTexto);
     }
 
     private static class PerfilAcumulado {
