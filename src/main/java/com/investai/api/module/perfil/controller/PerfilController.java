@@ -1,9 +1,8 @@
 package com.investai.api.module.perfil.controller;
 
-import com.investai.api.module.perfil.dto.QuizResponseDTO;
-import com.investai.api.module.perfil.dto.QuizSubmissaoResponseDTO;
-import com.investai.api.module.perfil.dto.SubmeterQuizRequestDTO;
+import com.investai.api.module.perfil.dto.*;
 import com.investai.api.module.perfil.service.PerfilQuizService;
+import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +18,19 @@ public class PerfilController {
 
     private final PerfilQuizService perfilQuizService;
     private final UsuarioAutenticadoHelper usuarioAutenticadoHelper;
+    private final PerfilService perfilService;
+
+    @GetMapping
+    public ResponseEntity<PerfilResponseDTO> obterPerfil() {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        return ResponseEntity.ok(perfilService.obterPerfil(usuarioId));
+    }
+
+    @PutMapping
+    public ResponseEntity<PerfilResponseDTO> editarPerfil(@Valid @RequestBody EditarPerfilRequestDTO dto) {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        return ResponseEntity.ok(perfilService.editarPerfil(usuarioId, dto));
+    }
 
     @GetMapping("/quiz")
     public ResponseEntity<QuizResponseDTO> obterQuiz() {
