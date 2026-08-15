@@ -4,9 +4,11 @@ import com.investai.api.config.SecurityConfig;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.dto.QuizResponseDTO;
 import com.investai.api.module.perfil.dto.QuizSubmissaoResponseDTO;
 import com.investai.api.module.perfil.service.PerfilQuizService;
+import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
@@ -48,6 +50,9 @@ class PerfilControllerSecurityTest {
     @MockitoBean
     private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
+    @MockitoBean
+    private PerfilService perfilService;
+
     private String tokenUsuario;
     private String tokenGestor;
 
@@ -84,6 +89,33 @@ class PerfilControllerSecurityTest {
                 .thenReturn(usuarioComum);
         when(usuarioDetailsService.loadUserByUsername(gestorMock.getEmail()))
                 .thenReturn(gestorMock);
+    }
+
+    @Test
+    @DisplayName("GET /perfil - deve retornar 401 sem token")
+    void obterPerfil_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/perfil"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /perfil - deve permitir usuário comum autenticado")
+    void obterPerfil_devePermitirUsuarioComum() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+        when(perfilService.obterPerfil(any())).thenReturn(PerfilResponseDTO.builder().build());
+
+        mockMvc.perform(get("/v1/perfil")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /perfil - deve retornar 401 sem token")
+    void editarPerfil_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(put("/v1/perfil")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

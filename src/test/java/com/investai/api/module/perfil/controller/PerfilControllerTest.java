@@ -2,10 +2,12 @@ package com.investai.api.module.perfil.controller;
 
 import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
+import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.module.perfil.dto.*;
 import com.investai.api.module.perfil.entity.TipoPergunta;
 import com.investai.api.module.perfil.service.PerfilQuizService;
+import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.shared.security.JwtUtil;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +50,85 @@ class PerfilControllerTest {
 
     @MockitoBean
     private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
+
+    @MockitoBean
+    private PerfilService perfilService;
+
+    @Test
+    @DisplayName("GET /perfil - deve retornar 200 com o perfil do usuário")
+    void obterPerfil_deveRetornar200() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+
+        PerfilResponseDTO response = PerfilResponseDTO.builder()
+                .perfilRisco(ValorDescritoDTO.builder().valor("MODERADO").descricao("...").build())
+                .valorDisponivel(new BigDecimal("1250.00"))
+                .tiposAceitos(List.of(TipoAtivo.ACAO))
+                .setoresPreferidos(List.of())
+                .perfilPreenchido(true)
+                .resumoIA("resumo qualquer")
+                .build();
+
+        when(perfilService.obterPerfil(any())).thenReturn(response);
+
+        mockMvc.perform(get("/v1/perfil"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfilRisco.valor").value("MODERADO"))
+                .andExpect(jsonPath("$.valorDisponivel").value(1250.00))
+                .andExpect(jsonPath("$.perfilPreenchido").value(true));
+    }
+
+    @Test
+    @DisplayName("PUT /perfil - deve retornar 200 com o perfil atualizado")
+    void editarPerfil_deveRetornar200() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+
+        PerfilResponseDTO response = PerfilResponseDTO.builder()
+                .perfilRisco(ValorDescritoDTO.builder().valor("ARROJADO").descricao("...").build())
+                .valorDisponivel(new BigDecimal("3500.50"))
+                .tiposAceitos(List.of(TipoAtivo.ACAO, TipoAtivo.ETF))
+                .setoresPreferidos(List.of())
+                .perfilPreenchido(true)
+                .build();
+
+        when(perfilService.editarPerfil(any(), any())).thenReturn(response);
+
+        String body = """
+                {
+                  "perfilRisco": "ARROJADO",
+                  "horizonteInvestimento": "CURTO_PRAZO",
+                  "objetivoFinanceiro": "PRESERVAR_CAPITAL",
+                  "valorDisponivel": 3500.50,
+                  "tiposAceitos": ["ACAO", "ETF"],
+                  "setoresPreferidos": []
+                }
+                """;
+
+        mockMvc.perform(put("/v1/perfil")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfilRisco.valor").value("ARROJADO"))
+                .andExpect(jsonPath("$.tiposAceitos", org.hamcrest.Matchers.containsInAnyOrder("ACAO", "ETF")));
+    }
+
+    @Test
+    @DisplayName("PUT /perfil - deve retornar 400 quando perfilRisco não é informado")
+    void editarPerfil_deveRetornar400QuandoPerfilRiscoAusente() throws Exception {
+        String body = """
+                {
+                  "horizonteInvestimento": "CURTO_PRAZO",
+                  "objetivoFinanceiro": "PRESERVAR_CAPITAL",
+                  "valorDisponivel": 3500.50,
+                  "tiposAceitos": ["ACAO"],
+                  "setoresPreferidos": []
+                }
+                """;
+
+        mockMvc.perform(put("/v1/perfil")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
 
     @Test
     @DisplayName("GET /perfil/quiz - deve retornar estrutura do quiz com sucesso")
