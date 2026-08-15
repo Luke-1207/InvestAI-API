@@ -194,4 +194,43 @@ class PerfilServiceTest {
 
         verify(perfilInvestidorRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("refazerQuiz - deve marcar perfilPreenchido como false sem apagar os dados anteriores")
+    void refazerQuiz_deveMarcarPerfilPreenchidoComoFalseSemApagarDados() {
+        UUID usuarioId = UUID.randomUUID();
+        PerfilInvestidor perfilExistente = perfilCompletoMock(UUID.randomUUID());
+
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfilExistente));
+        when(perfilInvestidorRepository.save(any(PerfilInvestidor.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(resumoPerfilService.gerarResumoIA(any())).thenReturn("resumo qualquer");
+
+        PerfilResponseDTO response = perfilService.refazerQuiz(usuarioId);
+
+        ArgumentCaptor<PerfilInvestidor> captor = ArgumentCaptor.forClass(PerfilInvestidor.class);
+        verify(perfilInvestidorRepository).save(captor.capture());
+        PerfilInvestidor salvo = captor.getValue();
+
+        assertThat(salvo.isPerfilPreenchido()).isFalse();
+        assertThat(salvo.getPerfilRisco()).isEqualTo("ARROJADO");
+        assertThat(salvo.getHorizonte()).isEqualTo("CURTO_PRAZO");
+        assertThat(salvo.getObjetivo()).isEqualTo("PRESERVAR_CAPITAL");
+        assertThat(salvo.getValorDisponivel()).isEqualByComparingTo("3500.50");
+        assertThat(salvo.getTiposAceitos()).containsExactlyInAnyOrder("ACAO", "ETF");
+
+        assertThat(response.isPerfilPreenchido()).isFalse();
+    }
+
+    @Test
+    @DisplayName("refazerQuiz - deve lançar exceção quando perfil não encontrado")
+    void refazerQuiz_deveLancarExcecaoQuandoNaoEncontrado() {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> perfilService.refazerQuiz(usuarioId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Perfil do investidor não encontrado");
+
+        verify(perfilInvestidorRepository, never()).save(any());
+    }
 }

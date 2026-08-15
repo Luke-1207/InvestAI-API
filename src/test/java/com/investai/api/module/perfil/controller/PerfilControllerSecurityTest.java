@@ -27,8 +27,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = PerfilController.class)
@@ -175,6 +174,24 @@ class PerfilControllerSecurityTest {
                         .header("Authorization", "Bearer " + tokenUsuario)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PATCH /perfil/refazer-quiz - deve retornar 401 sem token")
+    void refazerQuiz_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(patch("/v1/perfil/refazer-quiz"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PATCH /perfil/refazer-quiz - deve permitir usuário comum autenticado")
+    void refazerQuiz_devePermitirUsuarioComum() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+        when(perfilService.refazerQuiz(any())).thenReturn(PerfilResponseDTO.builder().build());
+
+        mockMvc.perform(patch("/v1/perfil/refazer-quiz")
+                        .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
     }
 }

@@ -42,4 +42,10 @@ public class PerfilController {
         UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
         return ResponseEntity.ok(perfilQuizService.submeterQuiz(usuarioId, dto));
     }
+
+    @PatchMapping("/refazer-quiz")
+    public ResponseEntity<PerfilResponseDTO> refazerQuiz() {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        return ResponseEntity.ok(perfilService.refazerQuiz(usuarioId));
+    }
 }
