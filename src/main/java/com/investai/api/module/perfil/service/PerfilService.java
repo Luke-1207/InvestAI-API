@@ -47,6 +47,14 @@ public class PerfilService {
         return montarPerfilResponse(perfil);
     }
 
+    @Transactional
+    public PerfilResponseDTO refazerQuiz(UUID usuarioId) {
+        PerfilInvestidor perfil = buscarPerfil(usuarioId);
+        perfil.setPerfilPreenchido(false);
+        perfilInvestidorRepository.save(perfil);
+        return montarPerfilResponse(perfil);
+    }
+
     private PerfilInvestidor buscarPerfil(UUID usuarioId) {
         return perfilInvestidorRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Perfil do investidor não encontrado"));

@@ -26,8 +26,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -230,5 +229,23 @@ class PerfilControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("PATCH /perfil/refazer-quiz - deve retornar 200 com perfilPreenchido false")
+    void refazerQuiz_deveRetornar200ComPerfilPreenchidoFalse() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+
+        PerfilResponseDTO response = PerfilResponseDTO.builder()
+                .perfilRisco(ValorDescritoDTO.builder().valor("ARROJADO").descricao("...").build())
+                .perfilPreenchido(false)
+                .build();
+
+        when(perfilService.refazerQuiz(any())).thenReturn(response);
+
+        mockMvc.perform(patch("/v1/perfil/refazer-quiz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfilPreenchido").value(false))
+                .andExpect(jsonPath("$.perfilRisco.valor").value("ARROJADO"));
     }
 }
