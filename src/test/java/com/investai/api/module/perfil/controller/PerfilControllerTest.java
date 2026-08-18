@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -247,5 +247,25 @@ class PerfilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.perfilPreenchido").value(false))
                 .andExpect(jsonPath("$.perfilRisco.valor").value("ARROJADO"));
+    }
+
+    @Test
+    @DisplayName("GET /perfil/{usuarioId} - deve retornar 200 com o perfil do usuário informado na URL")
+    void obterPerfilPorUsuarioId_deveRetornar200() throws Exception {
+        UUID usuarioId = UUID.randomUUID();
+
+        PerfilResponseDTO response = PerfilResponseDTO.builder()
+                .perfilRisco(ValorDescritoDTO.builder().valor("MODERADO").descricao("...").build())
+                .perfilPreenchido(true)
+                .build();
+
+        when(perfilService.obterPerfil(usuarioId)).thenReturn(response);
+
+        mockMvc.perform(get("/v1/perfil/{usuarioId}", usuarioId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfilRisco.valor").value("MODERADO"));
+
+        verify(perfilService).obterPerfil(usuarioId);
+        verify(usuarioAutenticadoHelper, never()).getIdUsuarioLogado();
     }
 }

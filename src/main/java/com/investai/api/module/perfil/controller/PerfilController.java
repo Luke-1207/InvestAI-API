@@ -48,4 +48,9 @@ public class PerfilController {
         UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
         return ResponseEntity.ok(perfilService.refazerQuiz(usuarioId));
     }
+
+    @GetMapping("/{usuarioId}")
+    public ResponseEntity<PerfilResponseDTO> obterPerfilPorUsuarioId(@PathVariable UUID usuarioId) {
+        return ResponseEntity.ok(perfilService.obterPerfil(usuarioId));
+    }
 }
