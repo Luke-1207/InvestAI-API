@@ -5,6 +5,7 @@ import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -17,6 +18,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -39,10 +41,18 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Não autenticado"))
-                        .accessDeniedHandler((request, response, accessDeniedException) ->
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Acesso negado"))
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"erro\":\"Não autenticado\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"erro\":\"Acesso negado\"}");
+                        })
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Rotas públicas de autenticação
@@ -52,8 +62,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/v1/auth/esqueci-senha").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/redefinir-senha").permitAll()
 
+                        // Rotas de Usuário Comum
                         .requestMatchers("/v1/usuarios/me").authenticated()
                         .requestMatchers("/v1/usuarios/me/senha").authenticated()
+                        .requestMatchers("/v1/perfil/quiz").authenticated()
+                        .requestMatchers("/v1/perfil/refazer-quiz").authenticated()
 
                         // Painel admin — somente GESTOR
                         .requestMatchers("/v1/usuarios/**").hasRole(Role.GESTOR.toString())
@@ -61,9 +74,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/v1/acoes").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.PUT, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
-                        .requestMatchers(HttpMethod.POST, "/api/v1/acoes").hasRole("GESTOR")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/acoes/**").hasRole("GESTOR")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/acoes/**").hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/acoes").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/acoes/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/acoes/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.GET, "/v1/perfil/*").hasRole(Role.GESTOR.toString())
 
                         // Tudo mais precisa estar autenticado
                         .anyRequest().authenticated()
@@ -85,6 +99,13 @@ public class SecurityConfig {
             AuthenticationConfiguration config
     ) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration(JwtAuthFilter jwtAuthFilter) {
+        FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(jwtAuthFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

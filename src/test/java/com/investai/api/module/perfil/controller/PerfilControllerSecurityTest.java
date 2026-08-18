@@ -28,6 +28,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = PerfilController.class)
@@ -192,6 +193,34 @@ class PerfilControllerSecurityTest {
 
         mockMvc.perform(patch("/v1/perfil/refazer-quiz")
                         .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /perfil/{usuarioId} - deve retornar 401 sem token, com corpo JSON padronizado")
+    void obterPerfilPorUsuarioId_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/perfil/{usuarioId}", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.erro").value("Não autenticado"));
+    }
+
+    @Test
+    @DisplayName("GET /perfil/{usuarioId} - deve retornar 403 pra usuário comum, com corpo JSON padronizado")
+    void obterPerfilPorUsuarioId_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(get("/v1/perfil/{usuarioId}", UUID.randomUUID())
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.erro").value("Acesso negado"));
+    }
+
+    @Test
+    @DisplayName("GET /perfil/{usuarioId} - deve permitir gestor autenticado")
+    void obterPerfilPorUsuarioId_devePermitirGestor() throws Exception {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilService.obterPerfil(usuarioId)).thenReturn(PerfilResponseDTO.builder().build());
+
+        mockMvc.perform(get("/v1/perfil/{usuarioId}", usuarioId)
+                        .header("Authorization", "Bearer " + tokenGestor))
                 .andExpect(status().isOk());
     }
 }
