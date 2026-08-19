@@ -55,6 +55,8 @@ hgbrasil:
 tesourodireto:
   base-url: ${TESOURO_DIRETO_BASE_URL:https://brapi.dev/api/v2/treasury}
   mock-enabled: ${TESOURO_DIRETO_MOCK_ENABLED:false}
+  sync:
+    cron: ${TESOURO_DIRETO_SYNC_CRON:0 0,30 10-18 * * MON-FRI}
 
 security:
   reset-token-expiration-minutes: 30
