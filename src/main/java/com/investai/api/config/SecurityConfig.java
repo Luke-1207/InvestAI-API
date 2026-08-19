@@ -78,6 +78,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/acoes/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/acoes/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.GET, "/v1/perfil/*").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.POST, "/v1/renda-fixa/titulos").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.PUT, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.PATCH, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.DELETE, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
 
                         // Tudo mais precisa estar autenticado
                         .anyRequest().authenticated()
