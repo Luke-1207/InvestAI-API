@@ -52,6 +52,10 @@ hgbrasil:
   cache:
     refresh-rate-ms: 900000 # 15 minutos
 
+tesourodireto:
+  base-url: ${TESOURO_DIRETO_BASE_URL:https://brapi.dev/api/v2/treasury}
+  mock-enabled: ${TESOURO_DIRETO_MOCK_ENABLED:false}
+
 security:
   reset-token-expiration-minutes: 30
 
