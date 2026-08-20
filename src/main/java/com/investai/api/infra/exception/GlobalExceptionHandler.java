@@ -78,6 +78,20 @@ public class GlobalExceptionHandler {
                 .body(buildResponse(HttpStatus.BAD_REQUEST, "Parâmetro obrigatório ausente: " + ex.getParameterName(), null));
     }
 
+    @ExceptionHandler(TesouroDiretoIndisponivelException.class)
+    public ResponseEntity<Map<String, Object>> handleTesouroDiretoIndisponivel(TesouroDiretoIndisponivelException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(IaIndisponivelException.class)
+    public ResponseEntity<Map<String, Object>> handleIaIndisponivel(IaIndisponivelException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null));
+    }
+
     private Map<String, Object> buildResponse(HttpStatus status, String mensagem, Object detalhes) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());

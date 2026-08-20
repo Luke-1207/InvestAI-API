@@ -53,6 +53,9 @@ tesourodireto:
   sync:
     cron: "0 0,30 10-18 * * MON-FRI"
 
+ia:
+  timeout-segundos: ${IA_TIMEOUT_SEGUNDOS:20}
+
 jwt:
   secret: ${JWT_SECRET:investai-local-dev-secret-super-segura-256bits}
   expiration-ms: 900000
