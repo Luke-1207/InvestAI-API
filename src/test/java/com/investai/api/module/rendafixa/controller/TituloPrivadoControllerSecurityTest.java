@@ -8,6 +8,8 @@ import com.investai.api.module.rendafixa.dto.TituloPrivadoResponseDTO;
 import com.investai.api.module.rendafixa.entity.Indexador;
 import com.investai.api.module.rendafixa.entity.TipoLiquidez;
 import com.investai.api.module.rendafixa.entity.TipoTituloPrivado;
+import com.investai.api.module.rendafixa.service.TituloPrivadoDetalheService;
+import com.investai.api.module.rendafixa.service.TituloPrivadoListagemService;
 import com.investai.api.module.rendafixa.service.TituloPrivadoService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
@@ -45,6 +47,12 @@ class TituloPrivadoControllerSecurityTest {
 
     @MockitoBean
     private UsuarioDetailsService usuarioDetailsService;
+
+    @MockitoBean
+    private TituloPrivadoListagemService tituloPrivadoListagemService;
+
+    @MockitoBean
+    private TituloPrivadoDetalheService tituloPrivadoDetalheService;
 
     private String tokenUsuario;
     private String tokenGestor;
@@ -135,5 +143,23 @@ class TituloPrivadoControllerSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CADASTRO_BODY))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos - deve retornar 401 sem token")
+    void listar_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/renda-fixa/titulos"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos - deve permitir usuário comum autenticado")
+    void listar_devePermitirUsuarioComum() throws Exception {
+        when(tituloPrivadoListagemService.listar(any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of()));
+
+        mockMvc.perform(get("/v1/renda-fixa/titulos")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
     }
 }
