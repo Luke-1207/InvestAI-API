@@ -58,6 +58,9 @@ tesourodireto:
   sync:
     cron: ${TESOURO_DIRETO_SYNC_CRON:0 0,30 10-18 * * MON-FRI}
 
+ia:
+  timeout-segundos: ${IA_TIMEOUT_SEGUNDOS:20}
+
 security:
   reset-token-expiration-minutes: 30
 

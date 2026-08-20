@@ -231,6 +231,30 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsEntry("erro", "Parâmetro obrigatório ausente: codigos");
     }
 
+    @Test
+    @DisplayName("handleTesouroDiretoIndisponivel - deve retornar 502 quando serviço externo indisponível")
+    void handleTesouroDiretoIndisponivel_deveRetornar502() {
+        TesouroDiretoIndisponivelException ex =
+                new TesouroDiretoIndisponivelException("Serviço de Tesouro Direto indisponível no momento");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleTesouroDiretoIndisponivel(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).containsEntry("erro", "Serviço de Tesouro Direto indisponível no momento");
+    }
+
+    @Test
+    @DisplayName("handleIaIndisponivel - deve retornar 502 quando microsserviço IA indisponível")
+    void handleIaIndisponivel_deveRetornar502() {
+        IaIndisponivelException ex =
+                new IaIndisponivelException("Serviço de resumo por IA não respondeu a tempo");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleIaIndisponivel(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).containsEntry("erro", "Serviço de resumo por IA não respondeu a tempo");
+    }
+
     private void metodoFake(Object obj) {
     }
 }
