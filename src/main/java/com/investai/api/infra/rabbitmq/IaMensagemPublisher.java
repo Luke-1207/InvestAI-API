@@ -28,9 +28,8 @@ public class IaMensagemPublisher {
     @Value("${ia.timeout-segundos:20}")
     private long timeoutSegundos;
 
-    public RankingResponseDTO enviarRankingEAguardar(ModuloIa modulo, PerfilIaDTO perfil, List<AtivoRankingDTO> ativos) {
+    public RankingResponseDTO enviarRankingEAguardar(ModuloIa modulo, PerfilIaDTO perfil, List<Map<String, Object>> ativos) {
         String correlationId = UUID.randomUUID().toString();
-
         RankingRequestDTO request = RankingRequestDTO.builder()
                 .correlationId(correlationId)
                 .modulo(modulo)

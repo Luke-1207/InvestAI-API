@@ -72,7 +72,7 @@ class IaMensagemPublisherTest {
     @DisplayName("enviarRankingEAguardar - deve publicar na fila certa e retornar a resposta quando o consumer completa o future")
     void enviarRankingEAguardar_devePublicarERetornarRespostaQuandoConsumerCompleta() {
         PerfilIaDTO perfil = PerfilIaDTO.builder().build();
-        List<AtivoRankingDTO> ativos = List.of(AtivoRankingDTO.builder().codigo("TAEE3").build());
+        List<Map<String, Object>> ativos = List.of(Map.of("codigo", "TAEE3"));
 
         doAnswer(invocation -> {
             RankingRequestDTO request = invocation.getArgument(1);
