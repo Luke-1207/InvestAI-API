@@ -3,10 +3,15 @@ package com.investai.api.module.rendafixa.controller;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.rendafixa.dto.RentabilidadeEstimadaDTO;
+import com.investai.api.module.rendafixa.dto.TituloPrivadoDetalheResponseDTO;
+import com.investai.api.module.rendafixa.dto.TituloPrivadoListagemResponseDTO;
 import com.investai.api.module.rendafixa.dto.TituloPrivadoResponseDTO;
 import com.investai.api.module.rendafixa.entity.Indexador;
 import com.investai.api.module.rendafixa.entity.TipoLiquidez;
 import com.investai.api.module.rendafixa.entity.TipoTituloPrivado;
+import com.investai.api.module.rendafixa.service.TituloPrivadoDetalheService;
+import com.investai.api.module.rendafixa.service.TituloPrivadoListagemService;
 import com.investai.api.module.rendafixa.service.TituloPrivadoService;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +51,12 @@ class TituloPrivadoControllerTest {
 
     @MockitoBean
     private UsuarioDetailsService usuarioDetailsService;
+
+    @MockitoBean
+    private TituloPrivadoListagemService tituloPrivadoListagemService;
+
+    @MockitoBean
+    private TituloPrivadoDetalheService tituloPrivadoDetalheService;
 
     private TituloPrivadoResponseDTO respostaPadrao(UUID id, boolean ativo) {
         return TituloPrivadoResponseDTO.builder()
@@ -190,5 +201,52 @@ class TituloPrivadoControllerTest {
 
         mockMvc.perform(delete("/v1/renda-fixa/titulos/{id}", id))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos - deve retornar 200 com página de resultados")
+    void listar_deveRetornar200() throws Exception {
+        TituloPrivadoListagemResponseDTO dto = TituloPrivadoListagemResponseDTO.builder()
+                .id(UUID.randomUUID())
+                .tipo(TipoTituloPrivado.LCI)
+                .emissor("Banco Inter")
+                .indexador(Indexador.CDI)
+                .taxaPercentual(BigDecimal.valueOf(95.0))
+                .vencimento(LocalDate.now().plusYears(2))
+                .investimentoMinimo(BigDecimal.valueOf(1000))
+                .liquidez(TipoLiquidez.NO_VENCIMENTO)
+                .garantidoFgc(true)
+                .isentoIr(true)
+                .build();
+
+        when(tituloPrivadoListagemService.listar(any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(dto)));
+
+        mockMvc.perform(get("/v1/renda-fixa/titulos")
+                        .param("isentoIR", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].emissor").value("Banco Inter"));
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos/{id} - deve retornar 200 com o detalhe")
+    void obterDetalhe_deveRetornar200() throws Exception {
+        UUID id = UUID.randomUUID();
+        TituloPrivadoDetalheResponseDTO dto = TituloPrivadoDetalheResponseDTO.builder()
+                .id(id)
+                .tipo(TipoTituloPrivado.CDB)
+                .emissor("Banco Inter")
+                .rentabilidadeEstimada(RentabilidadeEstimadaDTO.builder()
+                        .taxaBrutaAnual(BigDecimal.valueOf(112.0))
+                        .aliquotaIR(BigDecimal.valueOf(15.0))
+                        .taxaLiquidaAnual(BigDecimal.valueOf(95.20))
+                        .build())
+                .build();
+
+        when(tituloPrivadoDetalheService.obterDetalhe(id)).thenReturn(dto);
+
+        mockMvc.perform(get("/v1/renda-fixa/titulos/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rentabilidadeEstimada.taxaLiquidaAnual").value(95.20));
     }
 }
