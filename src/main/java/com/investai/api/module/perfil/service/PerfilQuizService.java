@@ -6,7 +6,9 @@ import com.investai.api.module.perfil.dto.*;
 import com.investai.api.module.perfil.entity.*;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.perfil.repository.QuizPerguntaRepository;
+import com.investai.api.shared.event.PerfilAlteradoEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,7 @@ public class PerfilQuizService {
     private final QuizPerguntaRepository quizPerguntaRepository;
     private final PerfilInvestidorRepository perfilInvestidorRepository;
     private final ResumoPerfilService resumoPerfilService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final BigDecimal VALOR_DISPONIVEL_FAIXA_ABERTA = BigDecimal.valueOf(15000);
 
@@ -81,7 +84,7 @@ public class PerfilQuizService {
         perfil.setPerfilPreenchido(true);
 
         perfilInvestidorRepository.save(perfil);
-
+        applicationEventPublisher.publishEvent(new PerfilAlteradoEvent(this, usuarioId));
         return montarResposta(acumulado, perfil);
     }
 
