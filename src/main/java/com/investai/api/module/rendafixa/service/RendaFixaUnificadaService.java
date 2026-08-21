@@ -1,5 +1,7 @@
 package com.investai.api.module.rendafixa.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.infra.rabbitmq.IaMensagemPublisher;
 import com.investai.api.infra.rabbitmq.dto.*;
@@ -13,7 +15,9 @@ import com.investai.api.module.rendafixa.dto.CategoriaRendaFixa;
 import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
+import com.investai.api.shared.event.PerfilAlteradoEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -22,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +38,11 @@ public class RendaFixaUnificadaService {
     private final PerfilInvestidorRepository perfilInvestidorRepository;
     private final IaMensagemPublisher iaMensagemPublisher;
 
+    private final Cache<UUID, List<RendaFixaListagemResponseDTO>> cacheInteligente = Caffeine.newBuilder()
+            .expireAfterWrite(30, TimeUnit.MINUTES)
+            .maximumSize(10_000)
+            .build();
+
     public List<RendaFixaListagemResponseDTO> listar(String modo, UUID usuarioId) {
         List<RendaFixaListagemResponseDTO> unificada = montarListaUnificada();
 
@@ -42,7 +52,12 @@ public class RendaFixaUnificadaService {
                     .toList();
         }
 
-        return aplicarRanqueamento(unificada, usuarioId);
+        return cacheInteligente.get(usuarioId, id -> aplicarRanqueamento(unificada, id));
+    }
+
+    @EventListener
+    public void aoAlterarPerfil(PerfilAlteradoEvent event) {
+        cacheInteligente.invalidate(event.getUsuarioId());
     }
 
     private List<RendaFixaListagemResponseDTO> montarListaUnificada() {
@@ -113,11 +128,12 @@ public class RendaFixaUnificadaService {
     private Map<String, Object> toAtivoRankingMap(RendaFixaListagemResponseDTO item) {
         Map<String, Object> ativo = new HashMap<>();
         ativo.put("codigo", item.getId().toString());
-        ativo.put("categoria", item.getCategoria().name());
+        ativo.put("nome", item.getNome());
+        ativo.put("tipo", item.getCategoria().name());
         ativo.put("indexador", item.getIndexador());
-        ativo.put("taxa", item.getTaxa());
+        ativo.put("taxaPercentual", item.getTaxa());
         ativo.put("vencimento", item.getVencimento().toString());
-        ativo.put("valorMinimo", item.getValorMinimo());
+        ativo.put("investimentoMinimo", item.getValorMinimo());
         ativo.put("liquidez", item.getLiquidez());
         ativo.put("isentoIR", item.isIsentoIr());
         ativo.put("garantidoFGC", item.isGarantidoFgc());

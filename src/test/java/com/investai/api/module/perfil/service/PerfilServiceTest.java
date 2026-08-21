@@ -7,6 +7,7 @@ import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.dto.SetorPreferidoRequestDTO;
 import com.investai.api.module.perfil.entity.*;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
+import com.investai.api.shared.event.PerfilAlteradoEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -33,6 +35,9 @@ class PerfilServiceTest {
 
     @Mock
     private ResumoPerfilService resumoPerfilService;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private PerfilService perfilService;
@@ -232,5 +237,30 @@ class PerfilServiceTest {
                 .hasMessage("Perfil do investidor não encontrado");
 
         verify(perfilInvestidorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("editarPerfil - deve publicar PerfilAlteradoEvent após salvar")
+    void editarPerfil_devePublicarEventoAposSalvar() {
+        UUID usuarioId = UUID.randomUUID();
+        PerfilInvestidor perfilExistente = PerfilInvestidor.builder().id(UUID.randomUUID()).perfilPreenchido(false).build();
+
+        EditarPerfilRequestDTO dto = new EditarPerfilRequestDTO();
+        dto.setPerfilRisco(PerfilRisco.MODERADO);
+        dto.setHorizonteInvestimento(HorizonteInvestimento.LONGO_PRAZO);
+        dto.setObjetivoFinanceiro(ObjetivoFinanceiro.RENDA_PASSIVA);
+        dto.setValorDisponivel(BigDecimal.TEN);
+        dto.setTiposAceitos(List.of(TipoAtivo.ACAO));
+        dto.setSetoresPreferidos(List.of());
+
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfilExistente));
+        when(perfilInvestidorRepository.save(any(PerfilInvestidor.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(resumoPerfilService.gerarResumoIA(any())).thenReturn("resumo qualquer");
+
+        perfilService.editarPerfil(usuarioId, dto);
+
+        ArgumentCaptor<PerfilAlteradoEvent> captor = ArgumentCaptor.forClass(PerfilAlteradoEvent.class);
+        verify(applicationEventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().getUsuarioId()).isEqualTo(usuarioId);
     }
 }

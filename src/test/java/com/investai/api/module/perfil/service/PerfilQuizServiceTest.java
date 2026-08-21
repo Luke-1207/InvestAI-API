@@ -9,6 +9,7 @@ import com.investai.api.module.perfil.dto.SubmeterQuizRequestDTO;
 import com.investai.api.module.perfil.entity.*;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.perfil.repository.QuizPerguntaRepository;
+import com.investai.api.shared.event.PerfilAlteradoEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.*;
 
@@ -38,6 +40,9 @@ class PerfilQuizServiceTest {
 
     @Mock
     private ResumoPerfilService resumoPerfilService;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     private static final UUID PERGUNTA_OBJETIVO_ID = UUID.randomUUID();
     private static final UUID OPCAO_OBJETIVO_RENDA_ID = UUID.randomUUID();
@@ -185,6 +190,10 @@ class PerfilQuizServiceTest {
         assertThat(salvo.getSetoresPreferidos().get(0).getSetor()).isEqualTo("Tecnologia");
         assertThat(salvo.getSetoresPreferidos().get(0).getPreferencia()).isEqualTo(PreferenciaSetor.PREFERIR);
         assertThat(salvo.isPerfilPreenchido()).isTrue();
+
+        ArgumentCaptor<PerfilAlteradoEvent> eventoCaptor = ArgumentCaptor.forClass(PerfilAlteradoEvent.class);
+        verify(applicationEventPublisher).publishEvent(eventoCaptor.capture());
+        assertThat(eventoCaptor.getValue().getUsuarioId()).isEqualTo(usuarioId);
     }
 
     @Test

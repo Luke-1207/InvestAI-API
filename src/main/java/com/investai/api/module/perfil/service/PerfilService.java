@@ -5,7 +5,9 @@ import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.perfil.dto.*;
 import com.investai.api.module.perfil.entity.*;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
+import com.investai.api.shared.event.PerfilAlteradoEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ public class PerfilService {
 
     private final PerfilInvestidorRepository perfilInvestidorRepository;
     private final ResumoPerfilService resumoPerfilService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional(readOnly = true)
     public PerfilResponseDTO obterPerfil(UUID usuarioId) {
@@ -43,7 +46,7 @@ public class PerfilService {
         perfil.setPerfilPreenchido(true);
 
         perfilInvestidorRepository.save(perfil);
-
+        applicationEventPublisher.publishEvent(new PerfilAlteradoEvent(this, usuarioId));
         return montarPerfilResponse(perfil);
     }
 
