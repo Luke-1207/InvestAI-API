@@ -10,6 +10,7 @@ import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
 import com.investai.api.module.rendafixa.entity.*;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
+import com.investai.api.shared.event.PerfilAlteradoEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -148,15 +149,15 @@ class RendaFixaUnificadaServiceTest {
         List<RendaFixaListagemResponseDTO> resultado = rendaFixaUnificadaService.listar("inteligente", usuarioId);
 
         assertThat(resultado).hasSize(2);
-        assertThat(resultado.get(0).getId()).isEqualTo(cdb.getId()); // maior score primeiro
+        assertThat(resultado.get(0).getId()).isEqualTo(cdb.getId());
         assertThat(resultado.get(0).getScore()).isEqualTo(92);
         assertThat(resultado.get(0).getCompatibilidade()).isEqualTo(Compatibilidade.ALTA);
         assertThat(resultado.get(1).getScore()).isEqualTo(60);
     }
 
     @Test
-    @DisplayName("listar - modo inteligente deve montar o mapa de ativos com codigo = id.toString()")
-    void listar_modoInteligente_deveMontarMapaComIdComoCodigo() {
+    @DisplayName("listar - modo inteligente deve montar o mapa de ativos com os nomes de campo certos pro schema Python")
+    void listar_modoInteligente_deveMontarMapaComNomesDeCampoCorretos() {
         UUID usuarioId = UUID.randomUUID();
         TituloTesouro tesouro = criarTesouro("Tesouro Selic 2029");
 
@@ -183,7 +184,17 @@ class RendaFixaUnificadaServiceTest {
 
         Map<String, Object> ativoEnviado = captor.getValue().get(0);
         assertThat(ativoEnviado.get("codigo")).isEqualTo(tesouro.getId().toString());
-        assertThat(ativoEnviado.get("categoria")).isEqualTo("TESOURO");
+        assertThat(ativoEnviado.get("nome")).isEqualTo(tesouro.getNome());
+        assertThat(ativoEnviado.get("tipo")).isEqualTo("TESOURO");
+        assertThat(ativoEnviado.get("taxaPercentual")).isEqualTo(tesouro.getTaxaAnual());
+        assertThat(ativoEnviado.get("investimentoMinimo")).isEqualTo(tesouro.getPrecoMinimo());
+        assertThat(ativoEnviado.get("indexador")).isEqualTo(tesouro.getTipo().name());
+        assertThat(ativoEnviado.get("liquidez")).isEqualTo("DIARIA");
+        assertThat(ativoEnviado.get("isentoIR")).isEqualTo(false);
+        assertThat(ativoEnviado.get("garantidoFGC")).isEqualTo(false);
+        assertThat(ativoEnviado.containsKey("categoria")).isFalse();
+        assertThat(ativoEnviado.containsKey("taxa")).isFalse();
+        assertThat(ativoEnviado.containsKey("valorMinimo")).isFalse();
     }
 
     @Test
@@ -198,5 +209,71 @@ class RendaFixaUnificadaServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verifyNoInteractions(iaMensagemPublisher);
+    }
+
+    @Test
+    @DisplayName("listar - modo inteligente deve chamar a IA na primeira vez")
+    void listar_modoInteligente_primeiraChamada_deveChamarIA() {
+        UUID usuarioId = UUID.randomUUID();
+        configurarCenarioPadraoInteligente(usuarioId);
+
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+
+        verify(iaMensagemPublisher, times(1)).enviarRankingEAguardar(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listar - modo inteligente na segunda chamada pro mesmo usuário deve usar o cache, sem chamar a IA de novo")
+    void listar_modoInteligente_segundaChamada_naoDeveChamarIANovamente() {
+        UUID usuarioId = UUID.randomUUID();
+        configurarCenarioPadraoInteligente(usuarioId);
+
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+
+        verify(iaMensagemPublisher, times(1)).enviarRankingEAguardar(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("listar - modo inteligente deve ter cache separado por usuário")
+    void listar_modoInteligente_usuariosDiferentes_devemTerCachesSeparados() {
+        UUID usuario1 = UUID.randomUUID();
+        UUID usuario2 = UUID.randomUUID();
+        configurarCenarioPadraoInteligente(usuario1);
+        configurarCenarioPadraoInteligente(usuario2);
+
+        rendaFixaUnificadaService.listar("inteligente", usuario1);
+        rendaFixaUnificadaService.listar("inteligente", usuario2);
+
+        verify(iaMensagemPublisher, times(2)).enviarRankingEAguardar(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("aoAlterarPerfil - deve invalidar o cache do usuário, forçando nova chamada à IA")
+    void aoAlterarPerfil_deveInvalidarCacheDoUsuario() {
+        UUID usuarioId = UUID.randomUUID();
+        configurarCenarioPadraoInteligente(usuarioId);
+
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+        rendaFixaUnificadaService.aoAlterarPerfil(new PerfilAlteradoEvent(this, usuarioId));
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+
+        verify(iaMensagemPublisher, times(2)).enviarRankingEAguardar(any(), any(), any());
+    }
+
+    private void configurarCenarioPadraoInteligente(UUID usuarioId) {
+        when(tituloTesouroRepository.findByDisponivelTrue()).thenReturn(List.of(criarTesouro("Tesouro Selic 2029")));
+        when(tituloPrivadoRepository.findByAtivoTrue()).thenReturn(List.of());
+
+        PerfilInvestidor perfil = PerfilInvestidor.builder()
+                .id(UUID.randomUUID())
+                .perfilRisco("CONSERVADOR").horizonte("CURTO_PRAZO").objetivo("PRESERVAR_CAPITAL")
+                .tiposAceitos(List.of()).setoresPreferidos(List.of())
+                .build();
+
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
+        when(iaMensagemPublisher.enviarRankingEAguardar(any(), any(), any()))
+                .thenReturn(RankingResponseDTO.builder().ativos(List.of()).build());
     }
 }
