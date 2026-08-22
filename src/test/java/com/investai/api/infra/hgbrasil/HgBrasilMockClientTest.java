@@ -3,6 +3,7 @@ package com.investai.api.infra.hgbrasil;
 import com.investai.api.infra.exception.AtivoNaoEncontradoNaHgBrasilException;
 import com.investai.api.infra.hgbrasil.dto.HgBrasilHistoricalPointDTO;
 import com.investai.api.infra.hgbrasil.dto.HgBrasilStockDTO;
+import com.investai.api.infra.hgbrasil.dto.IndicadoresMercadoExternoDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -122,5 +123,16 @@ class HgBrasilMockClientTest {
             assertThat(ponto.getFechamento()).isPositive();
             assertThat(ponto.getVolume()).isPositive();
         });
+    }
+
+    @Test
+    @DisplayName("obterIndicadoresMercado - deve retornar valores fixos de fixture")
+    void obterIndicadoresMercado_deveRetornarValoresFixos() {
+        IndicadoresMercadoExternoDTO resultado = hgBrasilMockClient.obterIndicadoresMercado();
+
+        assertThat(resultado.getIbovespaPontos()).isEqualByComparingTo("134820.5");
+        assertThat(resultado.getIbovespaVariacaoDia()).isEqualByComparingTo("-1.25");
+        assertThat(resultado.getDolarValor()).isEqualByComparingTo("5.14");
+        assertThat(resultado.getEuroValor()).isEqualByComparingTo("6.02");
     }
 }
