@@ -166,6 +166,57 @@ class HgBrasilClientImplTest {
                 .isInstanceOf(HgBrasilIndisponivelException.class);
     }
 
+    @Test
+    @DisplayName("obterIndicadoresMercado - deve mapear ibovespa, dólar e euro corretamente")
+    void obterIndicadoresMercado_deveMapearCorretamente() {
+        HgBrasilFinanceResponseDTO response = new HgBrasilFinanceResponseDTO();
+        HgBrasilFinanceResultsDTO results = new HgBrasilFinanceResultsDTO();
+
+        HgBrasilStockIndexDTO ibovespa = new HgBrasilStockIndexDTO();
+        ibovespa.setPoints(BigDecimal.valueOf(134820.5));
+        ibovespa.setVariation(BigDecimal.valueOf(-1.25));
+
+        HgBrasilCurrencyDTO dolar = new HgBrasilCurrencyDTO();
+        dolar.setBuy(BigDecimal.valueOf(5.14));
+        dolar.setVariation(BigDecimal.valueOf(-0.3));
+
+        HgBrasilCurrencyDTO euro = new HgBrasilCurrencyDTO();
+        euro.setBuy(BigDecimal.valueOf(6.02));
+        euro.setVariation(BigDecimal.valueOf(0.12));
+
+        HgBrasilCurrenciesDTO currencies = new HgBrasilCurrenciesDTO();
+        currencies.setUsd(dolar);
+        currencies.setEur(euro);
+
+        results.setStocks(Map.of("IBOVESPA", ibovespa));
+        results.setCurrencies(currencies);
+        response.setResults(results);
+
+        when(restClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(HgBrasilFinanceResponseDTO.class)).thenReturn(response);
+
+        IndicadoresMercadoExternoDTO resultado = hgBrasilClientImpl.obterIndicadoresMercado();
+
+        assertThat(resultado.getIbovespaPontos()).isEqualByComparingTo("134820.5");
+        assertThat(resultado.getIbovespaVariacaoDia()).isEqualByComparingTo("-1.25");
+        assertThat(resultado.getDolarValor()).isEqualByComparingTo("5.14");
+        assertThat(resultado.getEuroValor()).isEqualByComparingTo("6.02");
+    }
+
+    @Test
+    @DisplayName("obterIndicadoresMercado - deve lançar exceção quando resposta vem vazia")
+    void obterIndicadoresMercado_deveLancarExcecaoQuandoRespostaVazia() {
+        when(restClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(HgBrasilFinanceResponseDTO.class)).thenReturn(null);
+
+        assertThatThrownBy(() -> hgBrasilClientImpl.obterIndicadoresMercado())
+                .isInstanceOf(HgBrasilIndisponivelException.class);
+    }
+
     private void mockarCadeiaRestClientHistorico(HgBrasilHistoricalResponseDTO response) {
         when(restClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
