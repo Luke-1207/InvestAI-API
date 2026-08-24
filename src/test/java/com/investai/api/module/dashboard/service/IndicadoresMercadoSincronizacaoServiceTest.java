@@ -147,4 +147,32 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         assertThat(resultado.getIbovespaPontos()).isEqualByComparingTo("134820.5");
         assertThat(resultado.getSelicIpcaSincronizadoEm()).isNotNull();
     }
+
+    @Test
+    @DisplayName("obterSnapshotAtual - deve retornar o snapshot mapeado quando existe")
+    void obterSnapshotAtual_deveRetornarSnapshotMapeadoQuandoExiste() {
+        IndicadoresMercado existente = IndicadoresMercado.builder()
+                .id(UUID.randomUUID())
+                .ibovespaPontos(BigDecimal.valueOf(134820.5))
+                .selicAtual(BigDecimal.valueOf(14.25))
+                .build();
+
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(existente));
+
+        IndicadoresMercadoResponseDTO resultado = indicadoresMercadoSincronizacaoService.obterSnapshotAtual();
+
+        assertThat(resultado.getIbovespaPontos()).isEqualByComparingTo("134820.5");
+        assertThat(resultado.getSelicAtual()).isEqualByComparingTo("14.25");
+    }
+
+    @Test
+    @DisplayName("obterSnapshotAtual - deve retornar DTO com campos nulos quando nenhum snapshot existe ainda")
+    void obterSnapshotAtual_deveRetornarDTOVazioQuandoNaoExisteSnapshot() {
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.empty());
+
+        IndicadoresMercadoResponseDTO resultado = indicadoresMercadoSincronizacaoService.obterSnapshotAtual();
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getIbovespaPontos()).isNull();
+    }
 }

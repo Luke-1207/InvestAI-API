@@ -70,6 +70,13 @@ public class IndicadoresMercadoSincronizacaoService {
         return toResponseDTO(indicadores);
     }
 
+    @Transactional(readOnly = true)
+    public IndicadoresMercadoResponseDTO obterSnapshotAtual() {
+        return indicadoresMercadoRepository.findTopByOrderByIdAsc()
+                .map(this::toResponseDTO)
+                .orElseGet(() -> IndicadoresMercadoResponseDTO.builder().build());
+    }
+
     private IndicadoresMercado atualizarSelicIpca(BigDecimal selic, BigDecimal ipca) {
         IndicadoresMercado indicadores = buscarOuCriarSnapshot();
         indicadores.setSelicAtual(selic);
