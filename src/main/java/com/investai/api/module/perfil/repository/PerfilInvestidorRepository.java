@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface PerfilInvestidorRepository extends JpaRepository<PerfilInvestidor, UUID> {
     Optional<PerfilInvestidor> findByUsuarioId(UUID usuarioId);
+    long countByPerfilPreenchidoTrue();
+    long countByPerfilPreenchidoTrueAndPerfilRisco(String perfilRisco);
 }
