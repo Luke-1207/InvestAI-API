@@ -46,4 +46,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
             @Param("ativo") Boolean ativo,
             Pageable pageable
     );
+
+    long countByDeletadoEmIsNull();
 }

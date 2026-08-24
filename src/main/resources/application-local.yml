@@ -55,6 +55,8 @@ tesourodireto:
 
 ia:
   timeout-segundos: ${IA_TIMEOUT_SEGUNDOS:20}
+  health:
+    base-url: http://localhost:8000
 
 bcb:
   base-url: https://api.bcb.gov.br

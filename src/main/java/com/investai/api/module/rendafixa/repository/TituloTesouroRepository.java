@@ -11,8 +11,8 @@ import java.util.UUID;
 @Repository
 public interface TituloTesouroRepository extends JpaRepository<TituloTesouro, UUID> {
     boolean existsByCodigo(String codigo);
-
     Optional<TituloTesouro> findByCodigo(String codigo);
-
     List<TituloTesouro> findByDisponivelTrue();
+    long countByDisponivelTrue();
+    Optional<TituloTesouro> findTopByOrderBySincronizadoEmDesc();
 }
