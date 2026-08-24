@@ -255,6 +255,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).containsEntry("erro", "Serviço de resumo por IA não respondeu a tempo");
     }
 
+    @Test
+    @DisplayName("handleBcbIndisponivel - deve retornar 502 quando Banco Central indisponível")
+    void handleBcbIndisponivel_deveRetornar502() {
+        BcbIndisponivelException ex =
+                new BcbIndisponivelException("Serviço do Banco Central indisponível no momento");
+
+        ResponseEntity<Map<String, Object>> response = handler.handleBcbIndisponivel(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).containsEntry("erro", "Serviço do Banco Central indisponível no momento");
+    }
+
     private void metodoFake(Object obj) {
     }
 }

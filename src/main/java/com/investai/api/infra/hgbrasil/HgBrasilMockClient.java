@@ -1,10 +1,7 @@
 package com.investai.api.infra.hgbrasil;
 
 import com.investai.api.infra.exception.AtivoNaoEncontradoNaHgBrasilException;
-import com.investai.api.infra.hgbrasil.dto.HgBrasilDividendsDTO;
-import com.investai.api.infra.hgbrasil.dto.HgBrasilFinancialsDTO;
-import com.investai.api.infra.hgbrasil.dto.HgBrasilHistoricalPointDTO;
-import com.investai.api.infra.hgbrasil.dto.HgBrasilStockDTO;
+import com.investai.api.infra.hgbrasil.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -79,6 +76,18 @@ public class HgBrasilMockClient implements HgBrasilClient {
 
         log.debug("[MOCK] Gerando série histórica sintética para {} ({} dias)", tickerNormalizado, diasAtras);
         return gerarSerieDeterministica(tickerNormalizado, diasAtras);
+    }
+
+    @Override
+    public IndicadoresMercadoExternoDTO obterIndicadoresMercado() {
+        return IndicadoresMercadoExternoDTO.builder()
+                .ibovespaPontos(BigDecimal.valueOf(134820.5))
+                .ibovespaVariacaoDia(BigDecimal.valueOf(-1.25))
+                .dolarValor(BigDecimal.valueOf(5.14))
+                .dolarVariacaoDia(BigDecimal.valueOf(-0.3))
+                .euroValor(BigDecimal.valueOf(6.02))
+                .euroVariacaoDia(BigDecimal.valueOf(0.12))
+                .build();
     }
 
     private List<HgBrasilHistoricalPointDTO> gerarSerieDeterministica(String ticker, int diasAtras) {

@@ -92,6 +92,13 @@ public class GlobalExceptionHandler {
                 .body(buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null));
     }
 
+    @ExceptionHandler(BcbIndisponivelException.class)
+    public ResponseEntity<Map<String, Object>> handleBcbIndisponivel(BcbIndisponivelException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null));
+    }
+
     private Map<String, Object> buildResponse(HttpStatus status, String mensagem, Object detalhes) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());

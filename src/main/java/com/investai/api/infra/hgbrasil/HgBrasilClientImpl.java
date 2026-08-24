@@ -97,6 +97,42 @@ public class HgBrasilClientImpl implements HgBrasilClient {
         }
     }
 
+    @Override
+    public IndicadoresMercadoExternoDTO obterIndicadoresMercado() {
+        String url = String.format("%s/finance?key=%s", baseUrl, apiKey);
+
+        try {
+            HgBrasilFinanceResponseDTO response = hgBrasilRestClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .body(HgBrasilFinanceResponseDTO.class);
+
+            if (response == null || response.getResults() == null) {
+                throw new HgBrasilIndisponivelException("Resposta vazia da HG Brasil");
+            }
+
+            HgBrasilFinanceResultsDTO results = response.getResults();
+            HgBrasilStockIndexDTO ibovespa = results.getStocks() != null ? results.getStocks().get("IBOVESPA") : null;
+            HgBrasilCurrencyDTO dolar = results.getCurrencies() != null ? results.getCurrencies().getUsd() : null;
+            HgBrasilCurrencyDTO euro = results.getCurrencies() != null ? results.getCurrencies().getEur() : null;
+
+            return IndicadoresMercadoExternoDTO.builder()
+                    .ibovespaPontos(ibovespa != null ? ibovespa.getPoints() : null)
+                    .ibovespaVariacaoDia(ibovespa != null ? ibovespa.getVariation() : null)
+                    .dolarValor(dolar != null ? dolar.getBuy() : null)
+                    .dolarVariacaoDia(dolar != null ? dolar.getVariation() : null)
+                    .euroValor(euro != null ? euro.getBuy() : null)
+                    .euroVariacaoDia(euro != null ? euro.getVariation() : null)
+                    .build();
+
+        } catch (HgBrasilIndisponivelException e) {
+            throw e;
+        } catch (RestClientException e) {
+            log.error("Falha ao consultar indicadores de mercado na HG Brasil: {}", e.getMessage());
+            throw new HgBrasilIndisponivelException("Serviço de indicadores de mercado indisponível no momento");
+        }
+    }
+
     private HgBrasilHistoricalPointDTO toHistoricalPoint(String timestampIso, HgBrasilCandleDTO candle) {
         LocalDate data = OffsetDateTime.parse(timestampIso).toLocalDate();
         return HgBrasilHistoricalPointDTO.builder()
