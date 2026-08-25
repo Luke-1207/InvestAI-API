@@ -32,7 +32,7 @@ spring:
         smtp:
           auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: ${MAIL_SMTP_STARTTLS_ENABLE :false}
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:false}
 
 app:
   mail:
