@@ -192,19 +192,78 @@ cd investai-api
 
 ---
 
+# 👤 Usuário Padrão (Dev/Seed)
+
+Ao subir o banco do zero (primeira execução, ou depois de um `docker compose down -v`),
+uma migration de seed já cria um usuário gestor pronto pra uso:
+
+| Campo | Valor |
+|---|---|
+| E-mail | `gestor@gmail.com` |
+| Senha | `gestor123#` |
+| Role | `GESTOR` |
+
+> ⚠️ Esse usuário é só pra desenvolvimento/demonstração — a senha está em texto
+> plano aqui de propósito, pra facilitar login local. Nunca reutilize essas
+> credenciais em um ambiente de produção real.
+
+O usuário sobe **sem perfil de investidor preenchido** — é esperado, o perfil só é
+criado quando alguém faz o quiz de onboarding ou edita o perfil pela primeira vez
+autenticado como esse usuário.
+
+---
+
 # 🔑 Variáveis de Ambiente
 
-```env id="zv4u8u"
+```env
+# ---- PostgreSQL ----
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/investai_db
+SPRING_DATASOURCE_USERNAME=
+SPRING_DATASOURCE_PASSWORD=
+
+# ---- RabbitMQ ----
+SPRING_RABBITMQ_HOST=
+SPRING_RABBITMQ_USERNAME=
+SPRING_RABBITMQ_PASSWORD=
+
+# ---- Auth (JWT) ----
 JWT_SECRET=
-POSTGRES_DB=
-POSTGRES_USER=
-POSTGRES_PASSWORD=
-RABBITMQ_HOST=
-RABBITMQ_PORT=
-RABBITMQ_USER=
-RABBITMQ_PASSWORD=
+
+# ---- E-mail (SMTP) — recuperação de senha ----
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_SMTP_AUTH=true
+MAIL_SMTP_STARTTLS_ENABLE=true
+MAIL_ENABLED=true
+MAIL_FROM=no-reply@investai.com
+FRONTEND_URL=http://localhost:4200
+
+# ---- HG Brasil (cotação de ações + Ibovespa/Dólar/Euro) ----
 HG_BRASIL_API_KEY=
+HG_BRASIL_BASE_URL=https://api.hgbrasil.com
+HGBRASIL_MOCK_ENABLED=true   # true = dados sintéticos, não gasta cota da API
+
+# ---- Tesouro Direto (via brapi.dev) ----
+TESOURO_DIRETO_BASE_URL=https://brapi.dev/api/v2/treasury
+TESOURO_DIRETO_MOCK_ENABLED=true
+TESOURO_DIRETO_SYNC_CRON=0 0,30 10-18 * * MON-FRI
+
+# ---- Banco Central (Selic + IPCA — gratuita, sem chave) ----
+BCB_BASE_URL=https://api.bcb.gov.br
+MERCADO_SYNC_CRON=0 */15 10-18 * * MON-FRI
+SELIC_IPCA_SYNC_CRON=0 0 7 * * *
+
+# ---- Microsserviço de IA (InvestAI-IA) ----
+IA_TIMEOUT_SEGUNDOS=20
+IA_HEALTH_BASE_URL=http://localhost:8000
 ```
+
+> 💡 Pra rodar o stack completo (API + IA + Postgres + RabbitMQ juntos), veja o repositório
+> [InvestAI-Infra](https://github.com/SEU-USUARIO/InvestAI-Infra) — ele tem um `.env.example`
+> com todas essas variáveis já organizadas e comentadas, mais o `docker-compose.yml` que
+> orquestra tudo com um único `docker compose up`.
 
 ---
 
