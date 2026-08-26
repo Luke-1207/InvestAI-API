@@ -26,6 +26,9 @@ git checkout -b main origin/main
 echo "Recriando develop igual ao main..."
 git checkout -b develop
 
+echo "Atualizando referência local do develop remoto..."
+git fetch origin develop 2>/dev/null || true
+
 echo "Publicando develop no remoto (force-with-lease)..."
 git push origin develop --force-with-lease
 
