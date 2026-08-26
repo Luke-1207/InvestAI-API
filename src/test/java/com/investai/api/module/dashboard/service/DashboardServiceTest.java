@@ -1,5 +1,6 @@
 package com.investai.api.module.dashboard.service;
 
+import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.dashboard.dto.*;
 import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.service.PerfilService;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -112,6 +114,49 @@ class DashboardServiceTest {
         dashboardService.aoAlterarPerfil(new PerfilAlteradoEvent(this, usuarioId));
         dashboardService.obterDashboard(usuarioId);
 
+        verify(perfilService, times(2)).obterPerfil(usuarioId);
+    }
+
+    @Test
+    @DisplayName("obterDashboard - deve propagar a exceção original (não CompletionException) quando uma das buscas falha")
+    void obterDashboard_devePropagarExcecaoOriginalQuandoUmaBuscaFalha() {
+        UUID usuarioId = UUID.randomUUID();
+
+        when(indicadoresMercadoSincronizacaoService.obterSnapshotAtual())
+                .thenReturn(IndicadoresMercadoResponseDTO.builder().build());
+        when(dashboardSugestaoService.sugerirRendaVariavel(usuarioId))
+                .thenReturn(SugestoesRendaVariavelResponseDTO.builder().itens(List.of()).build());
+        when(dashboardSugestaoService.sugerirRendaFixa(usuarioId))
+                .thenReturn(SugestoesRendaFixaResponseDTO.builder().itens(List.of()).build());
+        when(perfilService.obterPerfil(usuarioId))
+                .thenThrow(new ResourceNotFoundException("Perfil do investidor não encontrado"));
+
+        assertThatThrownBy(() -> dashboardService.obterDashboard(usuarioId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Perfil do investidor não encontrado");
+    }
+
+    @Test
+    @DisplayName("obterDashboard - uma falha não deve deixar entrada quebrada no cache, chamada seguinte deve tentar de novo")
+    void obterDashboard_falhaNaoDevePoluirCache_chamadaSeguinteDeveTentarNovamente() {
+        UUID usuarioId = UUID.randomUUID();
+
+        when(indicadoresMercadoSincronizacaoService.obterSnapshotAtual())
+                .thenReturn(IndicadoresMercadoResponseDTO.builder().build());
+        when(dashboardSugestaoService.sugerirRendaVariavel(usuarioId))
+                .thenReturn(SugestoesRendaVariavelResponseDTO.builder().itens(List.of()).build());
+        when(dashboardSugestaoService.sugerirRendaFixa(usuarioId))
+                .thenReturn(SugestoesRendaFixaResponseDTO.builder().itens(List.of()).build());
+        when(perfilService.obterPerfil(usuarioId))
+                .thenThrow(new ResourceNotFoundException("Perfil do investidor não encontrado"))
+                .thenReturn(PerfilResponseDTO.builder().perfilPreenchido(true).build());
+
+        assertThatThrownBy(() -> dashboardService.obterDashboard(usuarioId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        DashboardResponseDTO resultado = dashboardService.obterDashboard(usuarioId);
+
+        assertThat(resultado.getPerfil().isPerfilPreenchido()).isTrue();
         verify(perfilService, times(2)).obterPerfil(usuarioId);
     }
 }
