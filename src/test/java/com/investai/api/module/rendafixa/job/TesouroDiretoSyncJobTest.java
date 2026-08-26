@@ -26,4 +26,12 @@ class TesouroDiretoSyncJobTest {
 
         verify(tesouroDiretoSincronizacaoService).sincronizar();
     }
+
+    @Test
+    @DisplayName("sincronizarNaSubida - deve delegar para o service de sincronização assim que a aplicação sobe")
+    void sincronizarNaSubida_deveDelegarParaOServiceDeSincronizacao() {
+        tesouroDiretoSyncJob.sincronizarNaSubida();
+
+        verify(tesouroDiretoSincronizacaoService).sincronizar();
+    }
 }
