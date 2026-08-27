@@ -26,7 +26,7 @@ git checkout -b main origin/main
 echo "Recriando develop igual ao main..."
 git checkout -b develop
 
-echo "Publicando develop no remoto (force-with-lease)..."
-git push origin develop --force-with-lease
+echo "Publicando develop no remoto (force)..."
+git push origin develop --force
 
 echo "✅ develop resetado com sucesso, igual ao main."
