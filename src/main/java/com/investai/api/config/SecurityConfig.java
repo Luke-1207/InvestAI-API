@@ -56,6 +56,11 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Rotas públicas de autenticação
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/cadastro").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/auth/refresh").permitAll()
