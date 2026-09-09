@@ -85,7 +85,7 @@ class PasswordResetServiceTest {
                 eq(usuario.getEmail()), eq(usuario.getNome()), linkCaptor.capture()
         );
         assertThat(linkCaptor.getValue())
-                .startsWith("http://localhost:4200/redefinir-senha?token=")
+                .startsWith("http://localhost:4200/auth/redefinir-senha?token=")
                 .contains(tokenSalvo.getToken());
     }
 
