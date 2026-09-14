@@ -11,6 +11,7 @@ import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
+import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,12 @@ class AcaoControllerSecurityTest {
 
     @MockitoBean
     private AcaoDetalheService acaoDetalheService;
+
+    @MockitoBean
+    private AcaoSugestaoService acaoSugestaoService;
+
+    @MockitoBean
+    private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
     private String tokenUsuario;
     private String tokenGestor;
@@ -278,6 +285,25 @@ class AcaoControllerSecurityTest {
                         .codigo("TAEE3").build());
 
         mockMvc.perform(get("/v1/acoes/{codigo}/detalhe", "TAEE3")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/sugestoes - deve retornar 401 sem token")
+    void listarSugestoes_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/acoes/sugestoes"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/sugestoes - deve permitir usuário comum autenticado (sem restrição de role)")
+    void listarSugestoes_devePermitirUsuarioComum() throws Exception {
+        when(acaoSugestaoService.listarSugestoes(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO.builder()
+                        .itens(java.util.List.of()).build());
+
+        mockMvc.perform(get("/v1/acoes/sugestoes")
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
     }

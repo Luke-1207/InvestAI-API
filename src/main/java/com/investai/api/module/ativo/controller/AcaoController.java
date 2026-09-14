@@ -1,7 +1,10 @@
 package com.investai.api.module.ativo.controller;
 
 import com.investai.api.module.ativo.dto.*;
+import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.service.*;
+import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
+import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +26,8 @@ public class AcaoController {
     private final ComparacaoService comparacaoService;
     private final HistoricoService historicoService;
     private final AcaoDetalheService acaoDetalheService;
+    private final AcaoSugestaoService acaoSugestaoService;
+    private final UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -69,6 +74,14 @@ public class AcaoController {
             @ModelAttribute AcaoListagemFiltroDTO filtro
     ) {
         return ResponseEntity.ok(acaoListagemService.listar(filtro));
+    }
+
+    @GetMapping("/sugestoes")
+    public ResponseEntity<SugestoesRendaVariavelResponseDTO> listarSugestoes(
+            @RequestParam(required = false) List<TipoAtivo> tipo
+    ) {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        return ResponseEntity.ok(acaoSugestaoService.listarSugestoes(usuarioId, tipo));
     }
 
     @GetMapping("/comparar")
