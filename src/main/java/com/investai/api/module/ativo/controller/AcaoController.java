@@ -3,6 +3,7 @@ package com.investai.api.module.ativo.controller;
 import com.investai.api.module.ativo.dto.*;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.service.*;
+import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
 import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import jakarta.validation.Valid;
@@ -97,5 +98,16 @@ public class AcaoController {
             @RequestParam(defaultValue = "1M") String periodo
     ) {
         return ResponseEntity.ok(historicoService.obterHistorico(codigo, periodo));
+    }
+
+    @GetMapping("/{codigo}/sugestao")
+    public ResponseEntity<SugestaoAtivoItemDTO> obterSugestao(@PathVariable String codigo) {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        SugestaoAtivoItemDTO sugestao = acaoSugestaoService.obterSugestao(codigo, usuarioId);
+
+        if (sugestao == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(sugestao);
     }
 }

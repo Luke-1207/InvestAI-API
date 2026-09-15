@@ -308,6 +308,24 @@ class AcaoControllerSecurityTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("GET /acoes/{codigo}/sugestao - deve retornar 401 sem token")
+    void obterSugestao_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/acoes/{codigo}/sugestao", "PETR4"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/sugestao - deve permitir usuário comum autenticado (sem restrição de role)")
+    void obterSugestao_devePermitirUsuarioComum() throws Exception {
+        when(acaoSugestaoService.obterSugestao(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(null);
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/sugestao", "PETR4")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isNoContent());
+    }
+
     private AcaoResponseDTO criarResponseMock() {
         return AcaoResponseDTO.builder()
                 .id(UUID.randomUUID())

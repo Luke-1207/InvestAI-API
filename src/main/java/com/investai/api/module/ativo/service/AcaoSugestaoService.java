@@ -1,6 +1,7 @@
 package com.investai.api.module.ativo.service;
 
 import com.investai.api.infra.exception.ResourceNotFoundException;
+import com.investai.api.module.ativo.entity.Acao;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.repository.AcaoRepository;
 import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
@@ -49,5 +50,22 @@ public class AcaoSugestaoService {
                 .toList();
 
         return SugestoesRendaVariavelResponseDTO.builder().itens(itens).build();
+    }
+
+    public SugestaoAtivoItemDTO obterSugestao(String codigo, UUID usuarioId) {
+        PerfilInvestidor perfil = buscarPerfil(usuarioId);
+        if (!perfil.isPerfilPreenchido()) {
+            return null;
+        }
+
+        Acao acao = acaoRepository.findByCodigoIgnoreCaseAndAtivoTrue(codigo)
+                .orElseThrow(() -> new ResourceNotFoundException("Ativo não cadastrado ou inativo: " + codigo));
+
+        return acaoPontuacaoService.pontuarAcao(acao, perfil);
+    }
+
+    private PerfilInvestidor buscarPerfil(UUID usuarioId) {
+        return perfilInvestidorRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil do investidor não encontrado"));
     }
 }
