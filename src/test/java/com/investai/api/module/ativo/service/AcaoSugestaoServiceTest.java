@@ -167,4 +167,54 @@ class AcaoSugestaoServiceTest {
         assertThat(resultado.getItens().get(0).getCodigo()).isEqualTo("A2");
         assertThat(resultado.getItens().get(5).getCodigo()).isEqualTo("A1");
     }
+
+    @Test
+    @DisplayName("obterSugestao - deve lançar exceção quando perfil não encontrado")
+    void obterSugestao_deveLancarExcecaoQuandoPerfilNaoEncontrado() {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> acaoSugestaoService.obterSugestao("PETR4", usuarioId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("obterSugestao - deve retornar null quando perfil não preenchido, sem nem buscar a ação")
+    void obterSugestao_deveRetornarNullQuandoPerfilNaoPreenchido() {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(criarPerfil(null, false)));
+
+        SugestaoAtivoItemDTO resultado = acaoSugestaoService.obterSugestao("PETR4", usuarioId);
+
+        assertThat(resultado).isNull();
+        verifyNoInteractions(acaoRepository);
+    }
+
+    @Test
+    @DisplayName("obterSugestao - deve lançar exceção quando o ativo não existe ou está inativo")
+    void obterSugestao_deveLancarExcecaoQuandoAtivoNaoEncontrado() {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(criarPerfil(List.of(), true)));
+        when(acaoRepository.findByCodigoIgnoreCaseAndAtivoTrue("XXXX3")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> acaoSugestaoService.obterSugestao("XXXX3", usuarioId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("obterSugestao - deve pontuar mesmo quando o tipo do ativo não está entre os tiposAceitos do perfil")
+    void obterSugestao_devePontuarMesmoForaDosTiposAceitos() {
+        UUID usuarioId = UUID.randomUUID();
+        Acao fii = criarAcao("MXRF11", TipoAtivo.FII);
+        PerfilInvestidor perfil = criarPerfil(List.of("ACAO"), true);
+
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
+        when(acaoRepository.findByCodigoIgnoreCaseAndAtivoTrue("MXRF11")).thenReturn(Optional.of(fii));
+        when(acaoPontuacaoService.pontuarAcao(fii, perfil)).thenReturn(criarSugestao("MXRF11", 55));
+
+        SugestaoAtivoItemDTO resultado = acaoSugestaoService.obterSugestao("MXRF11", usuarioId);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getCodigo()).isEqualTo("MXRF11");
+    }
 }
