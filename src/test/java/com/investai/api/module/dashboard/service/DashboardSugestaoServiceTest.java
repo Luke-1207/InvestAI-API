@@ -2,15 +2,14 @@ package com.investai.api.module.dashboard.service;
 
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.infra.rabbitmq.dto.Compatibilidade;
-import com.investai.api.module.ativo.dto.CotacaoResponseDTO;
 import com.investai.api.module.ativo.entity.Acao;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.repository.AcaoRepository;
-import com.investai.api.module.ativo.service.CotacaoService;
+import com.investai.api.module.ativo.service.AcaoPontuacaoService;
+import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
 import com.investai.api.module.dashboard.dto.SugestoesRendaFixaResponseDTO;
 import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
-import com.investai.api.module.perfil.entity.PreferenciaSetor;
 import com.investai.api.module.perfil.entity.SetorPreferido;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.rendafixa.dto.CategoriaRendaFixa;
@@ -31,6 +30,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +40,7 @@ class DashboardSugestaoServiceTest {
     private AcaoRepository acaoRepository;
 
     @Mock
-    private CotacaoService cotacaoService;
+    private AcaoPontuacaoService acaoPontuacaoService;
 
     @Mock
     private RendaFixaUnificadaService rendaFixaUnificadaService;
@@ -55,10 +55,6 @@ class DashboardSugestaoServiceTest {
         return Acao.builder().id(UUID.randomUUID()).codigo(codigo).nome(codigo).tipo(tipo).setor(setor).ativo(true).build();
     }
 
-    private CotacaoResponseDTO criarCotacao(BigDecimal preco, BigDecimal variacaoDia, BigDecimal dy) {
-        return CotacaoResponseDTO.builder().preco(preco).variacaoPercentual(variacaoDia).dividendYield(dy).build();
-    }
-
     private PerfilInvestidor criarPerfil(String risco, String horizonte, String objetivo, BigDecimal valorDisponivel,
                                          List<String> tiposAceitos, List<SetorPreferido> setores, boolean preenchido) {
         return PerfilInvestidor.builder()
@@ -68,6 +64,14 @@ class DashboardSugestaoServiceTest {
                 .tiposAceitos(tiposAceitos == null ? List.of() : tiposAceitos)
                 .setoresPreferidos(setores == null ? List.of() : setores)
                 .perfilPreenchido(preenchido)
+                .build();
+    }
+
+    private SugestaoAtivoItemDTO criarSugestao(String codigo, int score) {
+        return SugestaoAtivoItemDTO.builder()
+                .codigo(codigo).nome(codigo).tipo(TipoAtivo.ACAO).setor("Setor")
+                .preco(BigDecimal.TEN).variacaoDia(BigDecimal.ONE).dy(BigDecimal.ZERO)
+                .score(score).compatibilidade(Compatibilidade.MEDIA).justificativa("teste")
                 .build();
     }
 
@@ -104,104 +108,44 @@ class DashboardSugestaoServiceTest {
     }
 
     @Test
-    @DisplayName("sugerirRendaVariavel - deve excluir ações fora dos tiposAceitos do perfil")
+    @DisplayName("sugerirRendaVariavel - deve excluir ações fora dos tiposAceitos do perfil, sem nem pontuar elas")
     void sugerirRendaVariavel_deveExcluirAcoesForaDosTiposAceitos() {
         UUID usuarioId = UUID.randomUUID();
         Acao acao = criarAcao("PETR4", TipoAtivo.ACAO, "Petróleo");
         Acao fii = criarAcao("MXRF11", TipoAtivo.FII, "Papel");
 
-        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
-                criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
-                        List.of("ACAO"), List.of(), true)));
+        PerfilInvestidor perfil = criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
+                List.of("ACAO"), List.of(), true);
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
         when(acaoRepository.findByAtivoTrue()).thenReturn(List.of(acao, fii));
-        when(cotacaoService.obterCotacao("PETR4")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(2), BigDecimal.valueOf(4)));
+        when(acaoPontuacaoService.pontuarAcao(eq(acao), eq(perfil))).thenReturn(criarSugestao("PETR4", 60));
 
         SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
 
         assertThat(resultado.getItens()).hasSize(1);
         assertThat(resultado.getItens().get(0).getCodigo()).isEqualTo("PETR4");
+        // a FII nem deveria ter sido pontuada, já que foi filtrada antes de chegar no AcaoPontuacaoService
+        org.mockito.Mockito.verifyNoMoreInteractions(acaoPontuacaoService);
     }
 
     @Test
-    @DisplayName("sugerirRendaVariavel - deve excluir ação quando cotação está indisponível, sem quebrar")
-    void sugerirRendaVariavel_deveExcluirAcaoQuandoCotacaoIndisponivel() {
+    @DisplayName("sugerirRendaVariavel - deve descartar item quando AcaoPontuacaoService devolve null (cotação indisponível)")
+    void sugerirRendaVariavel_deveDescartarQuandoPontuacaoRetornaNull() {
         UUID usuarioId = UUID.randomUUID();
         Acao comCotacao = criarAcao("PETR4", TipoAtivo.ACAO, "Petróleo");
         Acao semCotacao = criarAcao("XXXX3", TipoAtivo.ACAO, "Desconhecido");
 
-        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
-                criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
-                        List.of(), List.of(), true)));
+        PerfilInvestidor perfil = criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
+                List.of(), List.of(), true);
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
         when(acaoRepository.findByAtivoTrue()).thenReturn(List.of(comCotacao, semCotacao));
-        when(cotacaoService.obterCotacao("PETR4")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(2), BigDecimal.valueOf(4)));
-        when(cotacaoService.obterCotacao("XXXX3")).thenThrow(new ResourceNotFoundException("sem cotação"));
+        when(acaoPontuacaoService.pontuarAcao(eq(comCotacao), eq(perfil))).thenReturn(criarSugestao("PETR4", 50));
+        when(acaoPontuacaoService.pontuarAcao(eq(semCotacao), eq(perfil))).thenReturn(null);
 
         SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
 
         assertThat(resultado.getItens()).hasSize(1);
         assertThat(resultado.getItens().get(0).getCodigo()).isEqualTo("PETR4");
-    }
-
-    @Test
-    @DisplayName("sugerirRendaVariavel - conservador com ação de baixa volatilidade deve pontuar mais que arrojado")
-    void sugerirRendaVariavel_conservadorComBaixaVolatilidade_devePontuarMais() {
-        UUID usuarioId = UUID.randomUUID();
-        Acao acao = criarAcao("TAEE3", TipoAtivo.ACAO, "Energia");
-
-        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
-                criarPerfil("CONSERVADOR", "MEDIO_PRAZO", "PRESERVAR_CAPITAL", BigDecimal.valueOf(9999),
-                        List.of(), List.of(), true)));
-        when(acaoRepository.findByAtivoTrue()).thenReturn(List.of(acao));
-        when(cotacaoService.obterCotacao("TAEE3")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(0.5), BigDecimal.valueOf(4)));
-
-        SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
-
-        assertThat(resultado.getItens().get(0).getScore()).isGreaterThan(0);
-    }
-
-    @Test
-    @DisplayName("sugerirRendaVariavel - conservador com ação de alta volatilidade deve pontuar negativamente esse critério")
-    void sugerirRendaVariavel_conservadorComAltaVolatilidade_devePontuarMenos() {
-        UUID usuarioId = UUID.randomUUID();
-        Acao baixaVol = criarAcao("TAEE3", TipoAtivo.ACAO, "Energia");
-        Acao altaVol = criarAcao("PETR4", TipoAtivo.ACAO, "Petróleo");
-
-        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
-                criarPerfil("CONSERVADOR", "MEDIO_PRAZO", "PRESERVAR_CAPITAL", BigDecimal.valueOf(9999),
-                        List.of(), List.of(), true)));
-        when(acaoRepository.findByAtivoTrue()).thenReturn(List.of(baixaVol, altaVol));
-        when(cotacaoService.obterCotacao("TAEE3")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(0.5), BigDecimal.ZERO));
-        when(cotacaoService.obterCotacao("PETR4")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(5), BigDecimal.ZERO));
-
-        SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
-
-        int scoreBaixaVol = resultado.getItens().stream().filter(i -> i.getCodigo().equals("TAEE3")).findFirst().get().getScore();
-        int scoreAltaVol = resultado.getItens().stream().filter(i -> i.getCodigo().equals("PETR4")).findFirst().get().getScore();
-        assertThat(scoreBaixaVol).isGreaterThan(scoreAltaVol);
-    }
-
-    @Test
-    @DisplayName("sugerirRendaVariavel - deve dar bônus de setor preferido e penalizar setor evitado")
-    void sugerirRendaVariavel_deveConsiderarSetoresPreferidos() {
-        UUID usuarioId = UUID.randomUUID();
-        Acao preferido = criarAcao("ITSA4", TipoAtivo.ACAO, "Bancos");
-        Acao evitado = criarAcao("VALE3", TipoAtivo.ACAO, "Mineração");
-
-        SetorPreferido pref = SetorPreferido.builder().setor("Bancos").preferencia(PreferenciaSetor.PREFERIR).build();
-        SetorPreferido evi = SetorPreferido.builder().setor("Mineração").preferencia(PreferenciaSetor.EVITAR).build();
-
-        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
-                criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
-                        List.of(), List.of(pref, evi), true)));
-        when(acaoRepository.findByAtivoTrue()).thenReturn(List.of(preferido, evitado));
-        when(cotacaoService.obterCotacao("ITSA4")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(1.5), BigDecimal.ZERO));
-        when(cotacaoService.obterCotacao("VALE3")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(1.5), BigDecimal.ZERO));
-
-        SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
-
-        int scorePreferido = resultado.getItens().stream().filter(i -> i.getCodigo().equals("ITSA4")).findFirst().get().getScore();
-        int scoreEvitado = resultado.getItens().stream().filter(i -> i.getCodigo().equals("VALE3")).findFirst().get().getScore();
-        assertThat(scorePreferido).isGreaterThan(scoreEvitado);
     }
 
     @Test
@@ -213,18 +157,22 @@ class DashboardSugestaoServiceTest {
                 criarAcao("A3", TipoAtivo.ACAO, "Setor"), criarAcao("A4", TipoAtivo.ACAO, "Setor"),
                 criarAcao("A5", TipoAtivo.ACAO, "Setor"), criarAcao("A6", TipoAtivo.ACAO, "Setor")
         );
+        int[] scores = {10, 90, 30, 80, 50, 20}; // A2 e A4 devem ser os 2 primeiros do resultado
 
-        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
-                criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
-                        List.of(), List.of(), true)));
+        PerfilInvestidor perfil = criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
+                List.of(), List.of(), true);
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
         when(acaoRepository.findByAtivoTrue()).thenReturn(acoes);
-        for (Acao a : acoes) {
-            when(cotacaoService.obterCotacao(a.getCodigo())).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(1.5), BigDecimal.ZERO));
+        for (int i = 0; i < acoes.size(); i++) {
+            when(acaoPontuacaoService.pontuarAcao(eq(acoes.get(i)), eq(perfil)))
+                    .thenReturn(criarSugestao(acoes.get(i).getCodigo(), scores[i]));
         }
 
         SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
 
         assertThat(resultado.getItens()).hasSize(5);
+        assertThat(resultado.getItens().get(0).getCodigo()).isEqualTo("A2"); // score 90
+        assertThat(resultado.getItens().get(1).getCodigo()).isEqualTo("A4"); // score 80
     }
 
     @Test
