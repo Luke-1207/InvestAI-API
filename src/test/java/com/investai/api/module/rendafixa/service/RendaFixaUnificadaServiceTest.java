@@ -262,6 +262,26 @@ class RendaFixaUnificadaServiceTest {
         verify(iaMensagemPublisher, times(2)).enviarRankingEAguardar(any(), any(), any());
     }
 
+    @Test
+    @DisplayName("listar - deve preencher codigo só pra Tesouro, títulos privados ficam com codigo null")
+    void listar_devePreencherCodigoSoParaTesouro() {
+        TituloTesouro tesouro = criarTesouro("Tesouro Selic 2029");
+        TituloPrivado cdb = criarPrivado(TipoTituloPrivado.CDB, "Banco Inter");
+
+        when(tituloTesouroRepository.findByDisponivelTrue()).thenReturn(List.of(tesouro));
+        when(tituloPrivadoRepository.findByAtivoTrue()).thenReturn(List.of(cdb));
+
+        List<RendaFixaListagemResponseDTO> resultado = rendaFixaUnificadaService.listar("livre", UUID.randomUUID());
+
+        RendaFixaListagemResponseDTO itemTesouro = resultado.stream()
+                .filter(i -> i.getCategoria() == CategoriaRendaFixa.TESOURO).findFirst().orElseThrow();
+        RendaFixaListagemResponseDTO itemPrivado = resultado.stream()
+                .filter(i -> i.getCategoria() == CategoriaRendaFixa.CDB).findFirst().orElseThrow();
+
+        assertThat(itemTesouro.getCodigo()).isEqualTo(tesouro.getCodigo());
+        assertThat(itemPrivado.getCodigo()).isNull();
+    }
+
     private void configurarCenarioPadraoInteligente(UUID usuarioId) {
         when(tituloTesouroRepository.findByDisponivelTrue()).thenReturn(List.of(criarTesouro("Tesouro Selic 2029")));
         when(tituloPrivadoRepository.findByAtivoTrue()).thenReturn(List.of());
