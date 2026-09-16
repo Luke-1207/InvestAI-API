@@ -12,6 +12,7 @@ import java.util.UUID;
 @Builder
 public class RendaFixaListagemResponseDTO {
     private UUID id;
+    private String codigo;
     private CategoriaRendaFixa categoria;
     private String nome;
     private String indexador;

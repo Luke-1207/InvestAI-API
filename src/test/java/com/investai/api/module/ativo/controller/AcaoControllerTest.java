@@ -5,7 +5,10 @@ import com.investai.api.module.ativo.dto.*;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.service.*;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
+import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
 import com.investai.api.shared.security.JwtUtil;
+import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +72,12 @@ class AcaoControllerTest {
 
     @MockitoBean
     private AcaoDetalheService acaoDetalheService;
+
+    @MockitoBean
+    private AcaoSugestaoService acaoSugestaoService;
+
+    @MockitoBean
+    private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
     @Test
     @DisplayName("POST /acoes - deve cadastrar ativo com sucesso")
@@ -516,6 +525,70 @@ class AcaoControllerTest {
         mockMvc.perform(get("/v1/acoes/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigo").value("TAEE3"));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/sugestoes - deve devolver os itens pontuados pelo AcaoSugestaoService")
+    void listarSugestoes_deveRetornarItensDoServico() throws Exception {
+        UUID usuarioId = UUID.randomUUID();
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(usuarioId);
+
+        SugestaoAtivoItemDTO item = SugestaoAtivoItemDTO.builder()
+                .codigo("PETR4").nome("Petrobras").tipo(TipoAtivo.ACAO).setor("Energia")
+                .preco(BigDecimal.valueOf(38)).variacaoDia(BigDecimal.ONE).dy(BigDecimal.valueOf(8))
+                .score(60).justificativa("teste")
+                .build();
+        SugestoesRendaVariavelResponseDTO response = SugestoesRendaVariavelResponseDTO.builder()
+                .itens(List.of(item)).build();
+
+        when(acaoSugestaoService.listarSugestoes(eq(usuarioId), any())).thenReturn(response);
+
+        mockMvc.perform(get("/v1/acoes/sugestoes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens[0].codigo").value("PETR4"))
+                .andExpect(jsonPath("$.itens[0].score").value(60));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/sugestoes - não deve confundir a rota literal com GET /acoes/{id}")
+    void listarSugestoes_naoDeveColidirComBuscarPorId() throws Exception {
+        UUID usuarioId = UUID.randomUUID();
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(usuarioId);
+        when(acaoSugestaoService.listarSugestoes(eq(usuarioId), any()))
+                .thenReturn(SugestoesRendaVariavelResponseDTO.builder().itens(List.of()).build());
+
+        mockMvc.perform(get("/v1/acoes/sugestoes"))
+                .andExpect(status().isOk());
+
+        verify(acaoService, never()).buscarPorId(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/sugestao - deve devolver a análise de IA de um ativo específico")
+    void obterSugestao_deveRetornarAnaliseDoAtivo() throws Exception {
+        SugestaoAtivoItemDTO item = SugestaoAtivoItemDTO.builder()
+                .codigo("PETR4").nome("Petrobras").tipo(TipoAtivo.ACAO).setor("Energia")
+                .preco(BigDecimal.valueOf(38)).variacaoDia(BigDecimal.ONE).dy(BigDecimal.valueOf(8))
+                .score(65).justificativa("Boa opção pro seu perfil.")
+                .build();
+
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+        when(acaoSugestaoService.obterSugestao(eq("PETR4"), any())).thenReturn(item);
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/sugestao", "PETR4"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score").value(65))
+                .andExpect(jsonPath("$.justificativa").value("Boa opção pro seu perfil."));
+    }
+
+    @Test
+    @DisplayName("GET /acoes/{codigo}/sugestao - deve retornar 204 quando o perfil ainda não está preenchido")
+    void obterSugestao_deveRetornar204QuandoPerfilNaoPreenchido() throws Exception {
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(UUID.randomUUID());
+        when(acaoSugestaoService.obterSugestao(eq("PETR4"), any())).thenReturn(null);
+
+        mockMvc.perform(get("/v1/acoes/{codigo}/sugestao", "PETR4"))
+                .andExpect(status().isNoContent());
     }
 
     private AcaoResponseDTO criarResponseMock() {

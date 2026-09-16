@@ -66,6 +66,7 @@ public class RendaFixaUnificadaService {
         tituloTesouroRepository.findByDisponivelTrue().forEach(t -> lista.add(
                 RendaFixaListagemResponseDTO.builder()
                         .id(t.getId())
+                        .codigo(t.getCodigo())
                         .categoria(CategoriaRendaFixa.TESOURO)
                         .nome(t.getNome())
                         .indexador(t.getTipo().name())

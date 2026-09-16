@@ -1,7 +1,11 @@
 package com.investai.api.module.ativo.controller;
 
 import com.investai.api.module.ativo.dto.*;
+import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.service.*;
+import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
+import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
+import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +27,8 @@ public class AcaoController {
     private final ComparacaoService comparacaoService;
     private final HistoricoService historicoService;
     private final AcaoDetalheService acaoDetalheService;
+    private final AcaoSugestaoService acaoSugestaoService;
+    private final UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
     @PostMapping
     public ResponseEntity<AcaoResponseDTO> cadastrar(
@@ -71,6 +77,14 @@ public class AcaoController {
         return ResponseEntity.ok(acaoListagemService.listar(filtro));
     }
 
+    @GetMapping("/sugestoes")
+    public ResponseEntity<SugestoesRendaVariavelResponseDTO> listarSugestoes(
+            @RequestParam(required = false) List<TipoAtivo> tipo
+    ) {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        return ResponseEntity.ok(acaoSugestaoService.listarSugestoes(usuarioId, tipo));
+    }
+
     @GetMapping("/comparar")
     public ResponseEntity<ComparacaoResponseDTO> comparar(
             @RequestParam List<String> codigos
@@ -84,5 +98,16 @@ public class AcaoController {
             @RequestParam(defaultValue = "1M") String periodo
     ) {
         return ResponseEntity.ok(historicoService.obterHistorico(codigo, periodo));
+    }
+
+    @GetMapping("/{codigo}/sugestao")
+    public ResponseEntity<SugestaoAtivoItemDTO> obterSugestao(@PathVariable String codigo) {
+        UUID usuarioId = usuarioAutenticadoHelper.getIdUsuarioLogado();
+        SugestaoAtivoItemDTO sugestao = acaoSugestaoService.obterSugestao(codigo, usuarioId);
+
+        if (sugestao == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(sugestao);
     }
 }
