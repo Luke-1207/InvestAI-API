@@ -6,6 +6,7 @@ import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
+import com.investai.api.module.auth.repository.UsuarioFotoRepository;
 import com.investai.api.module.auth.repository.UsuarioRepository;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
@@ -52,6 +53,9 @@ class UsuarioServiceTest {
 
     @Mock
     private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private UsuarioFotoRepository usuarioFotoRepository;
 
     @InjectMocks
     private UsuarioService usuarioService;
@@ -543,6 +547,7 @@ class UsuarioServiceTest {
         assertThat(usuario.getDeletadoEm()).isNotNull();
         verify(usuarioRepository).save(usuario);
         verify(refreshTokenService).revogarTodos(usuario);
+        verify(usuarioFotoRepository).deleteById(usuario.getId());
     }
 
     @Test
@@ -562,6 +567,48 @@ class UsuarioServiceTest {
 
         verify(usuarioRepository, never()).save(any());
         verify(refreshTokenService, never()).revogarTodos(any());
+    }
+
+    @Test
+    @DisplayName("atualizar - deve salvar o telefone informado")
+    void atualizar_deveSalvarTelefone() {
+        Usuario usuario = criarUsuarioMock();
+        when(usuarioAutenticadoHelper.getUsuarioLogado()).thenReturn(usuario);
+
+        AtualizarUsuarioRequestDTO dto = AtualizarUsuarioRequestDTO.builder()
+                .nome(usuario.getNome()).email(usuario.getEmail()).telefone("19999998888").build();
+
+        UsuarioResponseDTO resposta = usuarioService.atualizar(dto);
+
+        assertThat(usuario.getTelefone()).isEqualTo("19999998888");
+        assertThat(resposta.getTelefone()).isEqualTo("19999998888");
+    }
+
+    @Test
+    @DisplayName("atualizar - telefone vazio deve limpar o telefone (salvar null)")
+    void atualizar_telefoneVazioDeveLimpar() {
+        Usuario usuario = criarUsuarioMock();
+        usuario.setTelefone("19999998888");
+        when(usuarioAutenticadoHelper.getUsuarioLogado()).thenReturn(usuario);
+
+        AtualizarUsuarioRequestDTO dto = AtualizarUsuarioRequestDTO.builder()
+                .nome(usuario.getNome()).email(usuario.getEmail()).telefone("").build();
+
+        usuarioService.atualizar(dto);
+
+        assertThat(usuario.getTelefone()).isNull();
+    }
+
+    @Test
+    @DisplayName("obter - possuiFoto deve refletir se existe foto salva")
+    void obter_devePreencherPossuiFoto() {
+        Usuario usuario = criarUsuarioMock();
+        when(usuarioAutenticadoHelper.getUsuarioLogado()).thenReturn(usuario);
+        when(usuarioFotoRepository.existsById(usuario.getId())).thenReturn(true);
+
+        UsuarioResponseDTO resposta = usuarioService.obter();
+
+        assertThat(resposta.isPossuiFoto()).isTrue();
     }
 
     private Usuario criarUsuarioMock() {

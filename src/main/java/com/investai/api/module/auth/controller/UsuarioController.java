@@ -1,14 +1,19 @@
 package com.investai.api.module.auth.controller;
 
 import com.investai.api.module.auth.dto.*;
+import com.investai.api.module.auth.entity.UsuarioFoto;
+import com.investai.api.module.auth.service.UsuarioFotoService;
 import com.investai.api.module.auth.service.UsuarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -18,6 +23,7 @@ import java.util.UUID;
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
+    private final UsuarioFotoService usuarioFotoService;
 
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponseDTO> obter() {
@@ -36,6 +42,27 @@ public class UsuarioController {
             @Valid @RequestBody AlterarSenhaRequestDTO dto
     ) {
         usuarioService.alterarSenha(dto);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping(value = "/me/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Void> enviarFoto(@RequestParam("arquivo") MultipartFile arquivo) {
+        usuarioFotoService.salvar(arquivo);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me/foto")
+    public ResponseEntity<byte[]> obterFoto() {
+        UsuarioFoto foto = usuarioFotoService.obter();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(foto.getContentType()))
+                .cacheControl(CacheControl.noCache())
+                .body(foto.getConteudo());
+    }
+
+    @DeleteMapping("/me/foto")
+    public ResponseEntity<Void> removerFoto() {
+        usuarioFotoService.remover();
         return ResponseEntity.noContent().build();
     }
 

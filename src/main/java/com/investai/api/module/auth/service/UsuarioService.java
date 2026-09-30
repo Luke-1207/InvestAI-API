@@ -6,6 +6,7 @@ import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
+import com.investai.api.module.auth.repository.UsuarioFotoRepository;
 import com.investai.api.module.auth.repository.UsuarioRepository;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final UsuarioFotoRepository usuarioFotoRepository;
     private final PasswordEncoder passwordEncoder;
     private final UsuarioAutenticadoHelper usuarioAutenticadoHelper;
     private final PerfilInvestidorRepository perfilInvestidorRepository;
@@ -49,6 +51,7 @@ public class UsuarioService {
 
         usuario.setNome(dto.getNome());
         usuario.setEmail(novoEmail);
+        usuario.setTelefone(dto.getTelefone() == null || dto.getTelefone().isBlank() ? null : dto.getTelefone());
         usuarioRepository.save(usuario);
 
         return toResponseDTO(usuario);
@@ -137,6 +140,7 @@ public class UsuarioService {
         usuario.setAtivo(false);
         usuarioRepository.save(usuario);
 
+        usuarioFotoRepository.deleteById(usuario.getId());
         refreshTokenService.revogarTodos(usuario);
     }
 
@@ -164,6 +168,8 @@ public class UsuarioService {
                 .id(usuario.getId())
                 .nome(usuario.getNome())
                 .email(usuario.getEmail())
+                .telefone(usuario.getTelefone())
+                .possuiFoto(usuarioFotoRepository.existsById(usuario.getId()))
                 .role(usuario.getRole())
                 .ativo(usuario.isAtivo())
                 .criadoEm(usuario.getCriadoEm())

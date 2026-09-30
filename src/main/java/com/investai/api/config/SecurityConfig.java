@@ -78,6 +78,7 @@ public class SecurityConfig {
                         // Rotas de Usuário Comum
                         .requestMatchers("/v1/usuarios/me").authenticated()
                         .requestMatchers("/v1/usuarios/me/senha").authenticated()
+                        .requestMatchers("/v1/usuarios/me/foto").authenticated()
                         .requestMatchers("/v1/perfil/quiz").authenticated()
                         .requestMatchers("/v1/perfil/refazer-quiz").authenticated()
 
