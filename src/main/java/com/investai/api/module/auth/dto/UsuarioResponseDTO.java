@@ -13,6 +13,8 @@ public class UsuarioResponseDTO {
     private UUID id;
     private String nome;
     private String email;
+    private String telefone;
+    private boolean possuiFoto;
     private Role role;
     private boolean ativo;
     private LocalDateTime criadoEm;

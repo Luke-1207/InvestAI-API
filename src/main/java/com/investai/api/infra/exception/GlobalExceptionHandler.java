@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -69,6 +70,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)
                 .body(buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleUploadGrandeDemais(MaxUploadSizeExceededException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONTENT_TOO_LARGE)
+                .body(buildResponse(HttpStatus.CONTENT_TOO_LARGE, "Arquivo excede o tamanho máximo permitido (2 MB)", null));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

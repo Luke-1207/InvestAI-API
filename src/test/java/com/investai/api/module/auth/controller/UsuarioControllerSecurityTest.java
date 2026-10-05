@@ -3,7 +3,9 @@ package com.investai.api.module.auth.controller;
 import com.investai.api.config.SecurityConfig;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
+import com.investai.api.module.auth.entity.UsuarioFoto;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.auth.service.UsuarioFotoService;
 import com.investai.api.module.auth.service.UsuarioService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
@@ -33,6 +35,9 @@ class UsuarioControllerSecurityTest {
 
     @MockitoBean
     private UsuarioService usuarioService;
+
+    @MockitoBean
+    private UsuarioFotoService usuarioFotoService;
 
     @MockitoBean
     private JwtUtil jwtUtil;
@@ -109,6 +114,27 @@ class UsuarioControllerSecurityTest {
                         .content("""
                 { "senha": "qualquercoisa" }
             """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /usuarios/me/foto - deve permitir usuário comum (não cai na regra de gestor)")
+    void obterFoto_devePermitirUsuarioComum() throws Exception {
+        when(usuarioFotoService.obter()).thenReturn(UsuarioFoto.builder()
+                .usuarioId(UUID.randomUUID())
+                .conteudo(new byte[]{1, 2, 3})
+                .contentType("image/png")
+                .build());
+
+        mockMvc.perform(get("/v1/usuarios/me/foto")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /usuarios/me/foto - deve retornar 401 sem token")
+    void removerFoto_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(delete("/v1/usuarios/me/foto"))
                 .andExpect(status().isUnauthorized());
     }
 }
