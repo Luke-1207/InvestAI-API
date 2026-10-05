@@ -3,6 +3,7 @@ package com.investai.api.module.dashboard.controller;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.module.dashboard.dto.DashboardAdminResponseDTO;
+import com.investai.api.module.dashboard.dto.StatusIaResponseDTO;
 import com.investai.api.module.dashboard.service.DashboardAdminService;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -51,5 +52,19 @@ class DashboardAdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalUsuarios").value(100))
                 .andExpect(jsonPath("$.iaDisponivel").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /dashboard/admin/ia-status - deve retornar 200 com o status da IA")
+    void obterStatusIa_deveRetornar200() throws Exception {
+        when(dashboardAdminService.obterStatusIa()).thenReturn(StatusIaResponseDTO.builder()
+                .disponivel(true)
+                .rabbitmqConectado(true)
+                .build());
+
+        mockMvc.perform(get("/v1/dashboard/admin/ia-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.disponivel").value(true))
+                .andExpect(jsonPath("$.rabbitmqConectado").value(true));
     }
 }

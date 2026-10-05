@@ -6,8 +6,12 @@ import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.repository.AcaoRepository;
 import com.investai.api.module.auth.repository.UsuarioRepository;
 import com.investai.api.module.dashboard.dto.DashboardAdminResponseDTO;
+import com.investai.api.module.dashboard.dto.NivelUrgencia;
+import com.investai.api.module.dashboard.dto.StatusIaResponseDTO;
+import com.investai.api.module.dashboard.dto.TituloVencendoDTO;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.rendafixa.entity.TipoTituloPrivado;
+import com.investai.api.module.rendafixa.entity.TituloPrivado;
 import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
@@ -18,7 +22,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,6 +58,16 @@ class DashboardAdminServiceTest {
     @InjectMocks
     private DashboardAdminService dashboardAdminService;
 
+    private TituloPrivado tituloVencendoEm(int dias, String emissor) {
+        return TituloPrivado.builder()
+                .id(UUID.randomUUID())
+                .tipo(TipoTituloPrivado.CDB)
+                .emissor(emissor)
+                .vencimento(LocalDate.now().plusDays(dias))
+                .ativo(true)
+                .build();
+    }
+
     private void configurarCenarioPadrao() {
         when(usuarioRepository.countByDeletadoEmIsNull()).thenReturn(100L);
         when(perfilInvestidorRepository.countByPerfilPreenchidoTrue()).thenReturn(80L);
@@ -60,7 +76,10 @@ class DashboardAdminServiceTest {
         when(tituloPrivadoRepository.countByAtivoTrueAndTipo(any(TipoTituloPrivado.class))).thenReturn(3L);
         when(tituloTesouroRepository.countByDisponivelTrue()).thenReturn(7L);
         when(tituloTesouroRepository.findTopByOrderBySincronizadoEmDesc()).thenReturn(Optional.empty());
-        when(tituloPrivadoRepository.countByAtivoTrueAndVencimentoBetween(any(), any())).thenReturn(2L);
+        when(usuarioRepository.countByDeletadoEmIsNullAndCriadoEmGreaterThanEqual(any())).thenReturn(12L);
+        when(tituloPrivadoRepository.findByAtivoTrueAndVencimentoBetweenOrderByVencimentoAsc(any(), any())).thenReturn(List.of(
+                tituloVencendoEm(3, "Banco Alfa"),
+                tituloVencendoEm(20, "Banco Beta")));
         when(iaHealthClient.verificarStatus()).thenReturn(IaHealthStatusDTO.builder().disponivel(true).rabbitmqConectado(true).build());
     }
 
@@ -72,6 +91,7 @@ class DashboardAdminServiceTest {
         DashboardAdminResponseDTO resultado = dashboardAdminService.obterMetricasAdmin();
 
         assertThat(resultado.getTotalUsuarios()).isEqualTo(100L);
+        assertThat(resultado.getNovosUsuariosUltimos30Dias()).isEqualTo(12L);
         assertThat(resultado.getUsuariosComPerfilPreenchido()).isEqualTo(80L);
         assertThat(resultado.getDistribuicaoRisco()).hasSize(3); // CONSERVADOR, MODERADO, ARROJADO
         assertThat(resultado.getDistribuicaoAtivosPorCategoria()).containsKeys("ACAO", "FII", "ETF", "TESOURO", "CDB", "LCI", "LCA");
@@ -126,5 +146,34 @@ class DashboardAdminServiceTest {
 
         verify(usuarioRepository, times(1)).countByDeletadoEmIsNull();
         verify(iaHealthClient, times(1)).verificarStatus();
+    }
+
+    @Test
+    @DisplayName("obterMetricasAdmin - deve listar os títulos vencendo com dias restantes e urgência")
+    void obterMetricasAdmin_deveListarTitulosVencendoComUrgencia() {
+        configurarCenarioPadrao();
+
+        DashboardAdminResponseDTO resultado = dashboardAdminService.obterMetricasAdmin();
+
+        assertThat(resultado.getTitulosVencendo()).hasSize(2);
+        TituloVencendoDTO primeiro = resultado.getTitulosVencendo().get(0);
+        assertThat(primeiro.getEmissor()).isEqualTo("Banco Alfa");
+        assertThat(primeiro.getDiasParaVencimento()).isEqualTo(3L);
+        assertThat(primeiro.getUrgencia()).isEqualTo(NivelUrgencia.ALTA);
+        assertThat(resultado.getTitulosVencendo().get(1).getUrgencia()).isEqualTo(NivelUrgencia.BAIXA);
+    }
+
+    @Test
+    @DisplayName("obterStatusIa - deve consultar a IA a cada chamada, sem cache")
+    void obterStatusIa_naoDeveUsarCache() {
+        when(iaHealthClient.verificarStatus()).thenReturn(IaHealthStatusDTO.builder().disponivel(true).rabbitmqConectado(false).build());
+
+        StatusIaResponseDTO primeira = dashboardAdminService.obterStatusIa();
+        dashboardAdminService.obterStatusIa();
+
+        assertThat(primeira.isDisponivel()).isTrue();
+        assertThat(primeira.getRabbitmqConectado()).isFalse();
+        assertThat(primeira.getVerificadoEm()).isNotNull();
+        verify(iaHealthClient, times(2)).verificarStatus();
     }
 }
