@@ -5,6 +5,7 @@ import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
+import com.investai.api.module.relatorio.service.HistoricoRelatorioService;
 import com.investai.api.module.relatorio.service.RelatorioService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -23,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -40,6 +43,9 @@ class RelatorioControllerSecurityTest {
 
     @MockitoBean
     private RelatorioService relatorioService;
+
+    @MockitoBean
+    private HistoricoRelatorioService historicoRelatorioService;
 
     @MockitoBean
     private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
@@ -124,6 +130,25 @@ class RelatorioControllerSecurityTest {
                 .thenReturn(new RelatorioGeradoDTO("perfil-investidor.pdf", new byte[]{37, 80, 68, 70}));
 
         mockMvc.perform(get("/v1/relatorios/perfil")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/historico - deve retornar 401 sem token")
+    void listarHistorico_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/relatorios/historico"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(historicoRelatorioService);
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/historico - deve permitir usuário comum autenticado")
+    void listarHistorico_devePermitirUsuarioComum() throws Exception {
+        when(historicoRelatorioService.listar(any(), anyInt(), anyInt())).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/v1/relatorios/historico")
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
     }

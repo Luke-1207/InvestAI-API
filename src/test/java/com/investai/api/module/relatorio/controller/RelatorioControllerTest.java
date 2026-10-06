@@ -6,9 +6,12 @@ import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.relatorio.dto.HistoricoRelatorioResponseDTO;
 import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
 import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
+import com.investai.api.module.relatorio.entity.TipoRelatorio;
+import com.investai.api.module.relatorio.service.HistoricoRelatorioService;
 import com.investai.api.module.relatorio.service.RelatorioService;
 import com.investai.api.shared.security.JwtUtil;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
@@ -20,11 +23,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -58,6 +65,9 @@ class RelatorioControllerTest {
     private RelatorioService relatorioService;
 
     @MockitoBean
+    private HistoricoRelatorioService historicoRelatorioService;
+
+    @MockitoBean
     private UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
     @MockitoBean
@@ -73,6 +83,7 @@ class RelatorioControllerTest {
         usuario = Usuario.builder()
                 .id(UUID.randomUUID()).nome("Lucas").email("lucas@email.com").role(Role.USUARIO).ativo(true).build();
         when(usuarioAutenticadoHelper.getUsuarioLogado()).thenReturn(usuario);
+        when(usuarioAutenticadoHelper.getIdUsuarioLogado()).thenReturn(usuario.getId());
     }
 
     @Test
@@ -255,6 +266,53 @@ class RelatorioControllerTest {
         mockMvc.perform(get("/v1/relatorios/perfil"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.erro").value("Perfil do investidor não encontrado"));
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/historico - deve retornar a página de registros do usuário logado")
+    void listarHistorico_deveRetornarPaginaDeRegistros() throws Exception {
+        UUID idRegistro = UUID.randomUUID();
+        when(historicoRelatorioService.listar(usuario.getId(), 0, 20))
+                .thenReturn(new PageImpl<>(
+                        List.of(HistoricoRelatorioResponseDTO.builder()
+                                .id(idRegistro)
+                                .tipo(TipoRelatorio.ATIVO_INDIVIDUAL)
+                                .referencia("TAEE11")
+                                .geradoEm(LocalDateTime.of(2026, 10, 6, 15, 0))
+                                .build()),
+                        PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/v1/relatorios/historico"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(idRegistro.toString()))
+                .andExpect(jsonPath("$.content[0].tipo").value("ATIVO_INDIVIDUAL"))
+                .andExpect(jsonPath("$.content[0].referencia").value("TAEE11"))
+                .andExpect(jsonPath("$.content[0].geradoEm").value("2026-10-06T15:00:00"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/historico - deve repassar página e tamanho informados")
+    void listarHistorico_deveRepassarPaginacao() throws Exception {
+        when(historicoRelatorioService.listar(usuario.getId(), 2, 5))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(2, 5), 0));
+
+        mockMvc.perform(get("/v1/relatorios/historico").param("pagina", "2").param("tamanho", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty());
+
+        verify(historicoRelatorioService).listar(usuario.getId(), 2, 5);
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/historico - página não numérica deve retornar 400")
+    void listarHistorico_paginaNaoNumerica_deveRetornar400() throws Exception {
+        mockMvc.perform(get("/v1/relatorios/historico").param("pagina", "abc"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(historicoRelatorioService);
     }
 
     @Test
