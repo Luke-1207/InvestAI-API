@@ -10,7 +10,10 @@ import com.investai.api.module.relatorio.component.PdfEstilo;
 import com.investai.api.module.relatorio.component.PdfHeaderComponent;
 import com.investai.api.module.relatorio.component.PdfSecaoComponent;
 import com.investai.api.module.relatorio.component.PdfTableComponent;
+import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoFixo;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoVariavel;
+import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
+import com.investai.api.module.rendafixa.entity.Indexador;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -20,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +38,17 @@ public class RelatorioAtivoBuilder {
     public static final String COMPATIBILIDADE_INDISPONIVEL =
             "Não foi possível calcular a compatibilidade agora, porque o ativo está sem cotação disponível.";
     public static final String COTACAO_INDISPONIVEL = "Cotação indisponível no momento.";
+    public static final String NOTA_RENTABILIDADE =
+            "A taxa líquida aplica a alíquota de IR regressivo de cada prazo sobre a taxa bruta contratada e fica "
+                    + "na mesma unidade dela. É uma estimativa e não considera IOF nem taxas da instituição.";
+    public static final String NOTA_RENTABILIDADE_TAXA_SOMADA =
+            "Neste título a taxa é somada a um índice (IPCA ou Selic), e o IR regressivo incide sobre o rendimento "
+                    + "total, não só sobre a taxa fixa. Por isso a última coluna mostra a parcela do rendimento que "
+                    + "fica com o investidor em cada prazo. É uma estimativa e não considera IOF nem taxas da instituição.";
+    public static final String NOTA_ISENTO_IR =
+            "Este título é isento de Imposto de Renda para pessoa física, então a taxa líquida é igual à bruta.";
+
+    private static final BigDecimal PERCENTUAL_TOTAL = BigDecimal.valueOf(100);
 
     private static final Map<TipoAtivo, String> ROTULOS_TIPO = Map.of(
             TipoAtivo.ACAO, "Ação",
@@ -55,6 +70,12 @@ public class RelatorioAtivoBuilder {
             Compatibilidade.ALTA, "Alta",
             Compatibilidade.MEDIA, "Média",
             Compatibilidade.BAIXA, "Baixa");
+
+    private static final Map<Indexador, String> ROTULOS_INDEXADOR = Map.of(
+            Indexador.SELIC, "Selic (pós-fixado)",
+            Indexador.CDI, "CDI (pós-fixado)",
+            Indexador.IPCA, "IPCA (inflação + taxa fixa)",
+            Indexador.PREFIXADO, "Prefixado");
 
     private final PdfHeaderComponent pdfHeaderComponent;
     private final PdfTableComponent pdfTableComponent;
@@ -81,13 +102,72 @@ public class RelatorioAtivoBuilder {
         return saida.toByteArray();
     }
 
+    public byte[] construir(DadosRelatorioAtivoFixo dados) {
+        ByteArrayOutputStream saida = new ByteArrayOutputStream();
+        TituloRendaFixaRelatorio titulo = dados.titulo();
+
+        try (Document documento = new Document(new PdfDocument(new PdfWriter(saida)))) {
+            pdfHeaderComponent.adicionar(documento, "Análise de título de renda fixa",
+                    dados.nomeUsuario(), dados.geradoEm());
+
+            adicionarIdentificacao(documento, titulo.nome(), titulo.categoria());
+            adicionarPerfil(documento, dados.perfil());
+            adicionarDadosDoTitulo(documento, titulo);
+            adicionarRentabilidade(documento, titulo);
+
+            pdfDisclaimerComponent.adicionar(documento);
+        }
+
+        return saida.toByteArray();
+    }
+
+    private void adicionarDadosDoTitulo(Document documento, TituloRendaFixaRelatorio titulo) {
+        pdfSecaoComponent.adicionarTitulo(documento, "Dados do título");
+
+        documento.add(pdfTableComponent.criar(
+                new float[]{4, 6},
+                List.of("Característica", "Valor"),
+                List.of(
+                        linha("Indexador", ROTULOS_INDEXADOR.get(titulo.indexador())),
+                        linha("Taxa", taxa(titulo, titulo.taxa())),
+                        linha("Vencimento", FormatoRelatorio.data(titulo.vencimento())),
+                        linha("Investimento mínimo", FormatoRelatorio.moeda(titulo.investimentoMinimo())),
+                        linha("Liquidez", titulo.liquidez()),
+                        linha("Garantia", titulo.garantia()),
+                        linha("Imposto de Renda", titulo.isentoIr() ? "Isento" : "Tributado (tabela regressiva)"))));
+    }
+
+    private void adicionarRentabilidade(Document documento, TituloRendaFixaRelatorio titulo) {
+        pdfSecaoComponent.adicionarTitulo(documento, "Rentabilidade estimada por prazo");
+
+        documento.add(pdfTableComponent.criar(
+                new float[]{3, 2, 3, 4},
+                List.of("Prazo", "IR", "Taxa bruta", "Líquido estimado"),
+                titulo.rentabilidades().stream()
+                        .map(r -> List.of(
+                                r.prazo(),
+                                FormatoRelatorio.percentual(r.aliquotaIR()),
+                                taxa(titulo, r.taxaBruta()),
+                                r.taxaLiquida() != null
+                                        ? taxa(titulo, r.taxaLiquida())
+                                        : FormatoRelatorio.percentual(PERCENTUAL_TOTAL.subtract(r.aliquotaIR()))
+                                                + " do rendimento bruto"))
+                        .toList()));
+
+        pdfSecaoComponent.adicionarNota(documento, notaRentabilidade(titulo));
+    }
+
     private void adicionarIdentificacao(Document documento, AcaoDetalheResponseDTO ativo) {
-        documento.add(new Paragraph(ativo.getNome())
+        adicionarIdentificacao(documento, ativo.getNome(), ROTULOS_TIPO.get(ativo.getTipo()) + " · " + ativo.getSetor());
+    }
+
+    private void adicionarIdentificacao(Document documento, String nome, String subtitulo) {
+        documento.add(new Paragraph(nome)
                 .setFont(PdfEstilo.fonteNegrito())
                 .setFontSize(16)
                 .setFontColor(PdfEstilo.COR_TEXTO)
                 .setMargin(0));
-        documento.add(new Paragraph(ROTULOS_TIPO.get(ativo.getTipo()) + " · " + ativo.getSetor())
+        documento.add(new Paragraph(subtitulo)
                 .setFont(PdfEstilo.fonteNormal())
                 .setFontSize(PdfEstilo.TAMANHO_TEXTO)
                 .setFontColor(PdfEstilo.COR_TEXTO_SECUNDARIO)
@@ -174,6 +254,17 @@ public class RelatorioAtivoBuilder {
             return;
         }
         pdfSecaoComponent.adicionarParagrafo(documento, resumoIa);
+    }
+
+    private String notaRentabilidade(TituloRendaFixaRelatorio titulo) {
+        if (titulo.isentoIr()) {
+            return NOTA_ISENTO_IR;
+        }
+        return titulo.taxaSomadaAoIndexador() ? NOTA_RENTABILIDADE_TAXA_SOMADA : NOTA_RENTABILIDADE;
+    }
+
+    private String taxa(TituloRendaFixaRelatorio titulo, BigDecimal valor) {
+        return FormatoRelatorio.taxaComIndexador(titulo.indexador(), valor, titulo.taxaSomadaAoIndexador());
     }
 
     private String rotuloPerfil(String valor) {
