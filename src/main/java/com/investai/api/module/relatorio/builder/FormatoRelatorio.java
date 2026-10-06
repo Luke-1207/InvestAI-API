@@ -1,0 +1,50 @@
+package com.investai.api.module.relatorio.builder;
+
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
+public final class FormatoRelatorio {
+
+    private static final Locale PT_BR = Locale.of("pt", "BR");
+    private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DATA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
+
+    private FormatoRelatorio() {
+    }
+
+    public static String moeda(BigDecimal valor) {
+        return valor == null ? null : "R$ " + decimal().format(valor);
+    }
+
+    public static String percentual(BigDecimal valor) {
+        return valor == null ? null : decimal().format(valor) + "%";
+    }
+
+    public static String percentualComSinal(BigDecimal valor) {
+        if (valor == null) {
+            return null;
+        }
+        return (valor.signum() > 0 ? "+" : "") + decimal().format(valor) + "%";
+    }
+
+    public static String numero(BigDecimal valor) {
+        return valor == null ? null : decimal().format(valor);
+    }
+
+    public static String data(LocalDate valor) {
+        return valor == null ? null : valor.format(DATA);
+    }
+
+    public static String dataHora(LocalDateTime valor) {
+        return valor == null ? null : valor.format(DATA_HORA);
+    }
+
+    private static DecimalFormat decimal() {
+        return new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(PT_BR));
+    }
+}

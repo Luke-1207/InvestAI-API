@@ -4,12 +4,9 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.infra.rabbitmq.IaMensagemPublisher;
+import com.investai.api.infra.rabbitmq.PerfilIaMapper;
 import com.investai.api.infra.rabbitmq.dto.*;
-import com.investai.api.module.ativo.entity.TipoAtivo;
-import com.investai.api.module.perfil.entity.HorizonteInvestimento;
-import com.investai.api.module.perfil.entity.ObjetivoFinanceiro;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
-import com.investai.api.module.perfil.entity.PerfilRisco;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.rendafixa.dto.CategoriaRendaFixa;
 import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
@@ -101,7 +98,7 @@ public class RendaFixaUnificadaService {
         PerfilInvestidor perfil = perfilInvestidorRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Perfil do investidor não encontrado"));
 
-        PerfilIaDTO perfilIa = montarPerfilIa(perfil);
+        PerfilIaDTO perfilIa = PerfilIaMapper.dePerfil(perfil);
         List<Map<String, Object>> ativosParaRanquear = unificada.stream()
                 .map(this::toAtivoRankingMap)
                 .toList();
@@ -139,23 +136,5 @@ public class RendaFixaUnificadaService {
         ativo.put("isentoIR", item.isIsentoIr());
         ativo.put("garantidoFGC", item.isGarantidoFgc());
         return ativo;
-    }
-
-    private PerfilIaDTO montarPerfilIa(PerfilInvestidor perfil) {
-        return PerfilIaDTO.builder()
-                .perfilRisco(perfil.getPerfilRisco() != null ? PerfilRisco.valueOf(perfil.getPerfilRisco()) : null)
-                .horizonte(perfil.getHorizonte() != null ? HorizonteInvestimento.valueOf(perfil.getHorizonte()) : null)
-                .objetivo(perfil.getObjetivo() != null ? ObjetivoFinanceiro.valueOf(perfil.getObjetivo()) : null)
-                .valorDisponivel(perfil.getValorDisponivel())
-                .tiposAceitos(perfil.getTiposAceitos() == null ? List.of() :
-                        perfil.getTiposAceitos().stream().map(TipoAtivo::valueOf).toList())
-                .setoresPreferidos(perfil.getSetoresPreferidos() == null ? List.of() :
-                        perfil.getSetoresPreferidos().stream()
-                                .map(s -> SetorPreferidoIaDTO.builder()
-                                        .setor(s.getSetor())
-                                        .preferencia(s.getPreferencia())
-                                        .build())
-                                .toList())
-                .build();
     }
 }
