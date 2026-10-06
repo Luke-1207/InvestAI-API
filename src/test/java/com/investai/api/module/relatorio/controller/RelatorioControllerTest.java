@@ -233,6 +233,31 @@ class RelatorioControllerTest {
     }
 
     @Test
+    @DisplayName("GET /relatorios/perfil - deve retornar o PDF do perfil com headers de download")
+    void gerarRelatorioPerfil_deveRetornarPdfComHeadersDeDownload() throws Exception {
+        when(relatorioService.gerarRelatorioPerfil(usuario))
+                .thenReturn(new RelatorioGeradoDTO("perfil-investidor.pdf", PDF));
+
+        mockMvc.perform(get("/v1/relatorios/perfil"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"perfil-investidor.pdf\""))
+                .andExpect(content().bytes(PDF));
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/perfil - perfil inexistente deve retornar 404")
+    void gerarRelatorioPerfil_perfilInexistente_deveRetornar404() throws Exception {
+        when(relatorioService.gerarRelatorioPerfil(usuario))
+                .thenThrow(new ResourceNotFoundException("Perfil do investidor não encontrado"));
+
+        mockMvc.perform(get("/v1/relatorios/perfil"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.erro").value("Perfil do investidor não encontrado"));
+    }
+
+    @Test
     @DisplayName("GET /relatorios/ativo/{identificador} - tipo inválido deve retornar 400")
     void gerarRelatorioAtivo_tipoInvalido_deveRetornar400() throws Exception {
         mockMvc.perform(get("/v1/relatorios/ativo/TAEE11").param("tipo", "CRIPTO"))

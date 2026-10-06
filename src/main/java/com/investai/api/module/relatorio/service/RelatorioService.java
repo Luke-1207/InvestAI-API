@@ -8,9 +8,11 @@ import com.investai.api.module.ativo.service.ResumoAtivoService;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.relatorio.builder.RelatorioAtivoBuilder;
 import com.investai.api.module.relatorio.builder.RelatorioListagemBuilder;
+import com.investai.api.module.relatorio.builder.RelatorioPerfilBuilder;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoFixo;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoVariavel;
 import com.investai.api.module.relatorio.dto.DadosRelatorioListagem;
+import com.investai.api.module.relatorio.dto.DadosRelatorioPerfil;
 import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
 import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
@@ -27,6 +29,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RelatorioService {
 
+    private static final String NOME_ARQUIVO_PERFIL = "perfil-investidor.pdf";
+
     private static final Map<ModuloRelatorio, String> NOMES_ARQUIVO_LISTAGEM = Map.of(
             ModuloRelatorio.VARIAVEL, "listagem-renda-variavel.pdf",
             ModuloRelatorio.FIXA, "listagem-renda-fixa.pdf",
@@ -40,6 +44,7 @@ public class RelatorioService {
     private final RelatorioRendaFixaService relatorioRendaFixaService;
     private final RelatorioListagemService relatorioListagemService;
     private final RelatorioListagemBuilder relatorioListagemBuilder;
+    private final RelatorioPerfilBuilder relatorioPerfilBuilder;
 
     public RelatorioGeradoDTO gerarRelatorioAtivoVariavel(String codigo, Usuario usuario) {
         AcaoDetalheResponseDTO ativo = acaoDetalheService.obterDetalhe(codigo, PeriodoHistorico.UM_ANO.getCodigo());
@@ -79,6 +84,19 @@ public class RelatorioService {
         return new RelatorioGeradoDTO(
                 NOMES_ARQUIVO_LISTAGEM.get(request.getModulo()),
                 relatorioListagemBuilder.construir(dados));
+    }
+
+    public RelatorioGeradoDTO gerarRelatorioPerfil(Usuario usuario) {
+        DadosRelatorioPerfil dados = DadosRelatorioPerfil.builder()
+                .nomeUsuario(usuario.getNome())
+                .email(usuario.getEmail())
+                .telefone(usuario.getTelefone())
+                .cadastradoEm(usuario.getCriadoEm())
+                .geradoEm(LocalDateTime.now())
+                .perfil(perfilService.obterPerfil(usuario.getId()))
+                .build();
+
+        return new RelatorioGeradoDTO(NOME_ARQUIVO_PERFIL, relatorioPerfilBuilder.construir(dados));
     }
 
     private String paraNomeDeArquivo(String texto) {

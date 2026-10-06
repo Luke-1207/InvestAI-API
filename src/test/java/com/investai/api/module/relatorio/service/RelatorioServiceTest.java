@@ -13,9 +13,11 @@ import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.module.relatorio.builder.RelatorioAtivoBuilder;
 import com.investai.api.module.relatorio.builder.RelatorioListagemBuilder;
+import com.investai.api.module.relatorio.builder.RelatorioPerfilBuilder;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoFixo;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoVariavel;
 import com.investai.api.module.relatorio.dto.DadosRelatorioListagem;
+import com.investai.api.module.relatorio.dto.DadosRelatorioPerfil;
 import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
 import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
@@ -31,6 +33,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,8 +73,14 @@ class RelatorioServiceTest {
     @Mock
     private RelatorioListagemBuilder relatorioListagemBuilder;
 
+    @Mock
+    private RelatorioPerfilBuilder relatorioPerfilBuilder;
+
     @InjectMocks
     private RelatorioService relatorioService;
+
+    @Captor
+    private ArgumentCaptor<DadosRelatorioPerfil> dadosPerfilCaptor;
 
     @Captor
     private ArgumentCaptor<DadosRelatorioAtivoVariavel> dadosVariavelCaptor;
@@ -158,6 +167,31 @@ class RelatorioServiceTest {
         assertThat(dadosFixoCaptor.getValue().perfil()).isSameAs(perfil);
         assertThat(dadosFixoCaptor.getValue().titulo()).isSameAs(titulo);
         verifyNoInteractions(acaoDetalheService, resumoAtivoService);
+    }
+
+    @Test
+    @DisplayName("gerarRelatorioPerfil - deve reunir dados cadastrais e perfil do usuário logado")
+    void gerarRelatorioPerfil_deveReunirDadosCadastraisEPerfil() {
+        Usuario usuarioCompleto = Usuario.builder()
+                .id(UUID.randomUUID()).nome("Lucas Silva").email("lucas@email.com").telefone("19999998888")
+                .role(Role.USUARIO).criadoEm(LocalDateTime.of(2026, 3, 15, 9, 30)).build();
+        when(perfilService.obterPerfil(usuarioCompleto.getId())).thenReturn(perfil);
+        when(relatorioPerfilBuilder.construir(any(DadosRelatorioPerfil.class))).thenReturn(PDF);
+
+        RelatorioGeradoDTO relatorio = relatorioService.gerarRelatorioPerfil(usuarioCompleto);
+
+        assertThat(relatorio.nomeArquivo()).isEqualTo("perfil-investidor.pdf");
+        assertThat(relatorio.conteudo()).isEqualTo(PDF);
+
+        verify(relatorioPerfilBuilder).construir(dadosPerfilCaptor.capture());
+        DadosRelatorioPerfil dados = dadosPerfilCaptor.getValue();
+        assertThat(dados.nomeUsuario()).isEqualTo("Lucas Silva");
+        assertThat(dados.email()).isEqualTo("lucas@email.com");
+        assertThat(dados.telefone()).isEqualTo("19999998888");
+        assertThat(dados.cadastradoEm()).isEqualTo(LocalDateTime.of(2026, 3, 15, 9, 30));
+        assertThat(dados.geradoEm()).isNotNull();
+        assertThat(dados.perfil()).isSameAs(perfil);
+        verifyNoInteractions(acaoDetalheService, resumoAtivoService, relatorioListagemService);
     }
 
     @ParameterizedTest
