@@ -55,17 +55,6 @@ public class RelatorioAtivoBuilder {
             TipoAtivo.FII, "Fundo imobiliário",
             TipoAtivo.ETF, "ETF");
 
-    private static final Map<String, String> ROTULOS_PERFIL = Map.of(
-            "CONSERVADOR", "Conservador",
-            "MODERADO", "Moderado",
-            "ARROJADO", "Arrojado",
-            "RENDA_PASSIVA", "Renda passiva",
-            "CRESCIMENTO_PATRIMONIO", "Crescimento de patrimônio",
-            "PRESERVAR_CAPITAL", "Preservar capital",
-            "CURTO_PRAZO", "Curto prazo (menos de 1 ano)",
-            "MEDIO_PRAZO", "Médio prazo (1 a 5 anos)",
-            "LONGO_PRAZO", "Longo prazo (mais de 5 anos)");
-
     private static final Map<Compatibilidade, String> ROTULOS_COMPATIBILIDADE = Map.of(
             Compatibilidade.ALTA, "Alta",
             Compatibilidade.MEDIA, "Média",
@@ -187,9 +176,9 @@ public class RelatorioAtivoBuilder {
                 new float[]{3, 7},
                 List.of("Característica", "Seu perfil"),
                 List.of(
-                        linha("Perfil de risco", rotuloPerfil(perfil.getPerfilRisco().getValor())),
-                        linha("Objetivo", rotuloPerfil(perfil.getObjetivoFinanceiro().getValor())),
-                        linha("Horizonte", rotuloPerfil(perfil.getHorizonteInvestimento().getValor())),
+                        linha("Perfil de risco", RotulosPerfil.de(perfil.getPerfilRisco())),
+                        linha("Objetivo", RotulosPerfil.de(perfil.getObjetivoFinanceiro())),
+                        linha("Horizonte", RotulosPerfil.de(perfil.getHorizonteInvestimento())),
                         linha("Valor disponível", FormatoRelatorio.moeda(perfil.getValorDisponivel())))));
     }
 
@@ -265,10 +254,6 @@ public class RelatorioAtivoBuilder {
 
     private String taxa(TituloRendaFixaRelatorio titulo, BigDecimal valor) {
         return FormatoRelatorio.taxaComIndexador(titulo.indexador(), valor, titulo.taxaSomadaAoIndexador());
-    }
-
-    private String rotuloPerfil(String valor) {
-        return valor == null ? null : ROTULOS_PERFIL.getOrDefault(valor, valor);
     }
 
     private List<String> linha(String rotulo, String valor) {

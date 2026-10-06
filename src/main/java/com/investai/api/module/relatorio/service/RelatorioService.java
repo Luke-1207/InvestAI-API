@@ -7,9 +7,13 @@ import com.investai.api.module.ativo.service.AcaoSugestaoService;
 import com.investai.api.module.ativo.service.ResumoAtivoService;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.relatorio.builder.RelatorioAtivoBuilder;
+import com.investai.api.module.relatorio.builder.RelatorioListagemBuilder;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoFixo;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoVariavel;
+import com.investai.api.module.relatorio.dto.DadosRelatorioListagem;
+import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
+import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
 import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
 import com.investai.api.module.perfil.service.PerfilService;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +21,16 @@ import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class RelatorioService {
+
+    private static final Map<ModuloRelatorio, String> NOMES_ARQUIVO_LISTAGEM = Map.of(
+            ModuloRelatorio.VARIAVEL, "listagem-renda-variavel.pdf",
+            ModuloRelatorio.FIXA, "listagem-renda-fixa.pdf",
+            ModuloRelatorio.AMBOS, "listagem-completa.pdf");
 
     private final AcaoDetalheService acaoDetalheService;
     private final AcaoSugestaoService acaoSugestaoService;
@@ -28,6 +38,8 @@ public class RelatorioService {
     private final PerfilService perfilService;
     private final RelatorioAtivoBuilder relatorioAtivoBuilder;
     private final RelatorioRendaFixaService relatorioRendaFixaService;
+    private final RelatorioListagemService relatorioListagemService;
+    private final RelatorioListagemBuilder relatorioListagemBuilder;
 
     public RelatorioGeradoDTO gerarRelatorioAtivoVariavel(String codigo, Usuario usuario) {
         AcaoDetalheResponseDTO ativo = acaoDetalheService.obterDetalhe(codigo, PeriodoHistorico.UM_ANO.getCodigo());
@@ -59,6 +71,14 @@ public class RelatorioService {
         return new RelatorioGeradoDTO(
                 "analise-" + paraNomeDeArquivo(titulo.identificador()) + ".pdf",
                 relatorioAtivoBuilder.construir(dados));
+    }
+
+    public RelatorioGeradoDTO gerarRelatorioListagem(RelatorioListagemRequestDTO request, Usuario usuario) {
+        DadosRelatorioListagem dados = relatorioListagemService.montarDados(request, usuario);
+
+        return new RelatorioGeradoDTO(
+                NOMES_ARQUIVO_LISTAGEM.get(request.getModulo()),
+                relatorioListagemBuilder.construir(dados));
     }
 
     private String paraNomeDeArquivo(String texto) {

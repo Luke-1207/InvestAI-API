@@ -57,6 +57,24 @@ class PdfTableComponentTest {
     }
 
     @Test
+    @DisplayName("criar - tamanho de fonte menor deve gerar uma tabela mais baixa")
+    void criar_tamanhoDeFonteMenor_deveOcuparMenosPaginas() {
+        List<List<String>> linhas = new ArrayList<>();
+        for (int i = 1; i <= 60; i++) {
+            linhas.add(List.of("ATIVO" + i, "R$ " + i + ",00"));
+        }
+        float[] larguras = {1, 1};
+        List<String> cabecalhos = List.of("Código", "Preço");
+
+        int paginasPadrao = PdfTesteUtil.contarPaginas(PdfTesteUtil.gerar(
+                documento -> documento.add(pdfTableComponent.criar(larguras, cabecalhos, linhas))));
+        int paginasFonteMenor = PdfTesteUtil.contarPaginas(PdfTesteUtil.gerar(
+                documento -> documento.add(pdfTableComponent.criar(larguras, cabecalhos, linhas, 5f))));
+
+        assertThat(paginasFonteMenor).isLessThan(paginasPadrao);
+    }
+
+    @Test
     @DisplayName("criar - sem colunas deve lançar IllegalArgumentException")
     void criar_semColunas_deveLancarExcecao() {
         assertThatThrownBy(() -> pdfTableComponent.criar(List.of(), List.of()))

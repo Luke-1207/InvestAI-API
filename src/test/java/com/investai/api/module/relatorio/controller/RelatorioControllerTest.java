@@ -1,17 +1,21 @@
 package com.investai.api.module.relatorio.controller;
 
+import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
+import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
 import com.investai.api.module.relatorio.service.RelatorioService;
 import com.investai.api.shared.security.JwtUtil;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -22,13 +26,19 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -102,6 +112,124 @@ class RelatorioControllerTest {
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"analise-SELIC2029.pdf\""));
 
         verify(relatorioService, never()).gerarRelatorioAtivoVariavel(any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - deve retornar o PDF com headers de download")
+    void gerarRelatorioListagem_deveRetornarPdfComHeadersDeDownload() throws Exception {
+        when(relatorioService.gerarRelatorioListagem(any(RelatorioListagemRequestDTO.class), eq(usuario)))
+                .thenReturn(new RelatorioGeradoDTO("listagem-renda-variavel.pdf", PDF));
+
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "modulo": "VARIAVEL",
+                                  "filtros": { "Tipo": "Ações" },
+                                  "ativos": ["TAEE11", "ITUB4"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"listagem-renda-variavel.pdf\""))
+                .andExpect(content().bytes(PDF));
+
+        ArgumentCaptor<RelatorioListagemRequestDTO> requestCaptor =
+                ArgumentCaptor.forClass(RelatorioListagemRequestDTO.class);
+        verify(relatorioService).gerarRelatorioListagem(requestCaptor.capture(), eq(usuario));
+        assertThat(requestCaptor.getValue().getModulo()).isEqualTo(ModuloRelatorio.VARIAVEL);
+        assertThat(requestCaptor.getValue().getFiltros()).containsEntry("Tipo", "Ações");
+        assertThat(requestCaptor.getValue().getAtivos()).containsExactly("TAEE11", "ITUB4");
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - só o módulo é obrigatório")
+    void gerarRelatorioListagem_soModulo_deveAceitar() throws Exception {
+        when(relatorioService.gerarRelatorioListagem(any(RelatorioListagemRequestDTO.class), eq(usuario)))
+                .thenReturn(new RelatorioGeradoDTO("listagem-completa.pdf", PDF));
+
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"AMBOS\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - sem módulo deve retornar 400")
+    void gerarRelatorioListagem_semModulo_deveRetornar400() throws Exception {
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ativos\": [\"TAEE11\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes.modulo").exists());
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - módulo inválido deve retornar 400")
+    void gerarRelatorioListagem_moduloInvalido_deveRetornar400() throws Exception {
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"CRIPTO\"}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - mais de 50 ativos deve retornar 400")
+    void gerarRelatorioListagem_maisDe50Ativos_deveRetornar400() throws Exception {
+        String ativos = IntStream.rangeClosed(1, 51)
+                .mapToObj(i -> "\"ATV" + i + "\"")
+                .collect(Collectors.joining(","));
+
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"VARIAVEL\", \"ativos\": [" + ativos + "]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes.ativos").value("Informe no máximo 50 ativos por relatório"));
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - exatamente 50 ativos deve ser aceito")
+    void gerarRelatorioListagem_cinquentaAtivos_deveAceitar() throws Exception {
+        when(relatorioService.gerarRelatorioListagem(any(RelatorioListagemRequestDTO.class), eq(usuario)))
+                .thenReturn(new RelatorioGeradoDTO("listagem-renda-variavel.pdf", PDF));
+        String ativos = IntStream.rangeClosed(1, 50)
+                .mapToObj(i -> "\"ATV" + i + "\"")
+                .collect(Collectors.joining(","));
+
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"VARIAVEL\", \"ativos\": [" + ativos + "]}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - código de ativo em branco deve retornar 400")
+    void gerarRelatorioListagem_codigoEmBranco_deveRetornar400() throws Exception {
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"VARIAVEL\", \"ativos\": [\"TAEE11\", \" \"]}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - perfil incompleto deve retornar 422")
+    void gerarRelatorioListagem_perfilIncompleto_deveRetornar422() throws Exception {
+        when(relatorioService.gerarRelatorioListagem(any(RelatorioListagemRequestDTO.class), eq(usuario)))
+                .thenThrow(new BusinessException("Complete seu perfil de investidor para gerar o relatório de listagem ranqueada"));
+
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"VARIAVEL\"}"))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test

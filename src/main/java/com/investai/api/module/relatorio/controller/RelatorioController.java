@@ -3,8 +3,10 @@ package com.investai.api.module.relatorio.controller;
 import com.investai.api.infra.rabbitmq.dto.ModuloIa;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
+import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
 import com.investai.api.module.relatorio.service.RelatorioService;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -12,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,6 +38,16 @@ public class RelatorioController {
                 ? relatorioService.gerarRelatorioAtivoFixo(identificador, usuario)
                 : relatorioService.gerarRelatorioAtivoVariavel(identificador, usuario);
 
+        return comoDownload(relatorio);
+    }
+
+    @PostMapping("/listagem")
+    public ResponseEntity<byte[]> gerarRelatorioListagem(@Valid @RequestBody RelatorioListagemRequestDTO request) {
+        return comoDownload(relatorioService.gerarRelatorioListagem(
+                request, usuarioAutenticadoHelper.getUsuarioLogado()));
+    }
+
+    private ResponseEntity<byte[]> comoDownload(RelatorioGeradoDTO relatorio) {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,

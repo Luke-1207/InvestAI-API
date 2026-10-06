@@ -12,12 +12,18 @@ import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
 import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.module.relatorio.builder.RelatorioAtivoBuilder;
+import com.investai.api.module.relatorio.builder.RelatorioListagemBuilder;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoFixo;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoVariavel;
+import com.investai.api.module.relatorio.dto.DadosRelatorioListagem;
+import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
+import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
 import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -57,6 +63,12 @@ class RelatorioServiceTest {
 
     @Mock
     private RelatorioRendaFixaService relatorioRendaFixaService;
+
+    @Mock
+    private RelatorioListagemService relatorioListagemService;
+
+    @Mock
+    private RelatorioListagemBuilder relatorioListagemBuilder;
 
     @InjectMocks
     private RelatorioService relatorioService;
@@ -146,5 +158,24 @@ class RelatorioServiceTest {
         assertThat(dadosFixoCaptor.getValue().perfil()).isSameAs(perfil);
         assertThat(dadosFixoCaptor.getValue().titulo()).isSameAs(titulo);
         verifyNoInteractions(acaoDetalheService, resumoAtivoService);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "VARIAVEL, listagem-renda-variavel.pdf",
+            "FIXA, listagem-renda-fixa.pdf",
+            "AMBOS, listagem-completa.pdf"
+    })
+    @DisplayName("gerarRelatorioListagem - deve construir o PDF com os dados montados e nomear o arquivo pelo módulo")
+    void gerarRelatorioListagem_deveConstruirENomearPeloModulo(ModuloRelatorio modulo, String nomeEsperado) {
+        RelatorioListagemRequestDTO request = RelatorioListagemRequestDTO.builder().modulo(modulo).build();
+        DadosRelatorioListagem dados = DadosRelatorioListagem.builder().modulo(modulo).build();
+        when(relatorioListagemService.montarDados(request, usuario)).thenReturn(dados);
+        when(relatorioListagemBuilder.construir(dados)).thenReturn(PDF);
+
+        RelatorioGeradoDTO relatorio = relatorioService.gerarRelatorioListagem(request, usuario);
+
+        assertThat(relatorio.nomeArquivo()).isEqualTo(nomeEsperado);
+        assertThat(relatorio.conteudo()).isEqualTo(PDF);
     }
 }

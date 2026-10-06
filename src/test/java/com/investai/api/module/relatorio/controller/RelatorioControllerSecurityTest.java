@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -79,6 +81,30 @@ class RelatorioControllerSecurityTest {
 
         mockMvc.perform(get("/v1/relatorios/ativo/TAEE11")
                         .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - deve retornar 401 sem token")
+    void gerarRelatorioListagem_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"VARIAVEL\"}"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("POST /relatorios/listagem - deve permitir usuário comum autenticado")
+    void gerarRelatorioListagem_devePermitirUsuarioComum() throws Exception {
+        when(relatorioService.gerarRelatorioListagem(any(), any()))
+                .thenReturn(new RelatorioGeradoDTO("listagem-renda-variavel.pdf", new byte[]{37, 80, 68, 70}));
+
+        mockMvc.perform(post("/v1/relatorios/listagem")
+                        .header("Authorization", "Bearer " + tokenUsuario)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"modulo\": \"VARIAVEL\"}"))
                 .andExpect(status().isOk());
     }
 
