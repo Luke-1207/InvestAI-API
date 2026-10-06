@@ -78,12 +78,13 @@ public class SecurityConfig {
                         // Rotas de Usuário Comum
                         .requestMatchers("/v1/usuarios/me").authenticated()
                         .requestMatchers("/v1/usuarios/me/senha").authenticated()
+                        .requestMatchers("/v1/usuarios/me/foto").authenticated()
                         .requestMatchers("/v1/perfil/quiz").authenticated()
                         .requestMatchers("/v1/perfil/refazer-quiz").authenticated()
 
                         // Painel admin — somente GESTOR
                         .requestMatchers("/v1/usuarios/**").hasRole(Role.GESTOR.toString())
-                        .requestMatchers("/v1/dashboard/admin").hasRole(Role.GESTOR.toString())
+                        .requestMatchers("/v1/dashboard/admin/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.POST, "/v1/acoes").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.PUT, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
@@ -96,7 +97,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.PATCH, "/v1/dashboard/indicadores/**").hasRole(Role.GESTOR.toString())
-                        .requestMatchers(HttpMethod.GET, "/v1/dashboard/admin").hasRole(Role.GESTOR.toString())
 
                         // Tudo mais precisa estar autenticado
                         .anyRequest().authenticated()

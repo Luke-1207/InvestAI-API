@@ -5,7 +5,9 @@ import com.investai.api.infra.exception.GlobalExceptionHandler;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.Role;
+import com.investai.api.module.auth.entity.UsuarioFoto;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
+import com.investai.api.module.auth.service.UsuarioFotoService;
 import com.investai.api.module.auth.service.UsuarioService;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -28,11 +31,8 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = UsuarioController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -44,6 +44,9 @@ class UsuarioControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private UsuarioFotoService usuarioFotoService;
 
     @MockitoBean
     private UsuarioService usuarioService;
@@ -334,6 +337,64 @@ class UsuarioControllerTest {
                 { "ativo": null }
             """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /usuarios/me - deve rejeitar telefone com formato inválido (400)")
+    void atualizar_deveRejeitarTelefoneInvalido() throws Exception {
+        mockMvc.perform(put("/v1/usuarios/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            { "nome": "Lucas", "email": "lucas@email.com", "telefone": "(19) 9999-8888" }
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes.telefone").exists());
+
+        verify(usuarioService, never()).atualizar(any());
+    }
+
+    @Test
+    @DisplayName("PUT /usuarios/me/foto - deve aceitar upload multipart e devolver 204")
+    void enviarFoto_deveRetornar204() throws Exception {
+        MockMultipartFile arquivo = new MockMultipartFile(
+                "arquivo", "foto.png", "image/png", new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47});
+
+        mockMvc.perform(multipart("/v1/usuarios/me/foto").file(arquivo)
+                        .with(req -> { req.setMethod("PUT"); return req; }))
+                .andExpect(status().isNoContent());
+
+        verify(usuarioFotoService).salvar(any());
+    }
+
+    @Test
+    @DisplayName("GET /usuarios/me/foto - deve devolver os bytes com o content-type salvo")
+    void obterFoto_deveRetornarBytesComContentType() throws Exception {
+        byte[] bytes = {(byte) 0x89, 0x50, 0x4E, 0x47};
+        when(usuarioFotoService.obter()).thenReturn(
+                UsuarioFoto.builder().usuarioId(UUID.randomUUID()).conteudo(bytes).contentType("image/png").build());
+
+        mockMvc.perform(get("/v1/usuarios/me/foto"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(content().bytes(bytes));
+    }
+
+    @Test
+    @DisplayName("GET /usuarios/me/foto - deve devolver 404 quando o usuário não tem foto")
+    void obterFoto_deveRetornar404SemFoto() throws Exception {
+        when(usuarioFotoService.obter()).thenThrow(new ResourceNotFoundException("Usuário não possui foto de perfil"));
+
+        mockMvc.perform(get("/v1/usuarios/me/foto"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /usuarios/me/foto - deve devolver 204")
+    void removerFoto_deveRetornar204() throws Exception {
+        mockMvc.perform(delete("/v1/usuarios/me/foto"))
+                .andExpect(status().isNoContent());
+
+        verify(usuarioFotoService).remover();
     }
 
     private UsuarioDetalheResponseDTO criarDetalheResponseMock() {

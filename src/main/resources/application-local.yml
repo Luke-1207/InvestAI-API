@@ -3,6 +3,10 @@ server:
     context-path: /investai-api
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/investai_db}
     username: ${SPRING_DATASOURCE_USERNAME:investaidb_dev}

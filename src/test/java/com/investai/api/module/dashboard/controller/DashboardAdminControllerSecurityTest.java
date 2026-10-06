@@ -87,4 +87,20 @@ class DashboardAdminControllerSecurityTest {
                         .header("Authorization", "Bearer " + tokenGestor))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("GET /dashboard/admin/ia-status - deve retornar 403 pra usuário comum")
+    void obterStatusIa_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(get("/v1/dashboard/admin/ia-status")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /dashboard/admin/ia-status - deve permitir gestor")
+    void obterStatusIa_devePermitirGestor() throws Exception {
+        mockMvc.perform(get("/v1/dashboard/admin/ia-status")
+                        .header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isOk());
+    }
 }

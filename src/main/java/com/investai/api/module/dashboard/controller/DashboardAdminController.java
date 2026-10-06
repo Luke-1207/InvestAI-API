@@ -1,6 +1,7 @@
 package com.investai.api.module.dashboard.controller;
 
 import com.investai.api.module.dashboard.dto.DashboardAdminResponseDTO;
+import com.investai.api.module.dashboard.dto.StatusIaResponseDTO;
 import com.investai.api.module.dashboard.service.DashboardAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,5 +19,10 @@ public class DashboardAdminController {
     @GetMapping
     public ResponseEntity<DashboardAdminResponseDTO> obterMetricasAdmin() {
         return ResponseEntity.ok(dashboardAdminService.obterMetricasAdmin());
+    }
+
+    @GetMapping("/ia-status")
+    public ResponseEntity<StatusIaResponseDTO> obterStatusIa() {
+        return ResponseEntity.ok(dashboardAdminService.obterStatusIa());
     }
 }
