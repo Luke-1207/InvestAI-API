@@ -109,6 +109,26 @@ class RelatorioControllerSecurityTest {
     }
 
     @Test
+    @DisplayName("GET /relatorios/perfil - deve retornar 401 sem token")
+    void gerarRelatorioPerfil_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(get("/v1/relatorios/perfil"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(relatorioService);
+    }
+
+    @Test
+    @DisplayName("GET /relatorios/perfil - deve permitir usuário comum autenticado")
+    void gerarRelatorioPerfil_devePermitirUsuarioComum() throws Exception {
+        when(relatorioService.gerarRelatorioPerfil(any()))
+                .thenReturn(new RelatorioGeradoDTO("perfil-investidor.pdf", new byte[]{37, 80, 68, 70}));
+
+        mockMvc.perform(get("/v1/relatorios/perfil")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("GET /relatorios/ativo/{identificador} - CORS deve expor o header Content-Disposition")
     void gerarRelatorioAtivo_corsDeveExporContentDisposition() throws Exception {
         when(relatorioService.gerarRelatorioAtivoVariavel(eq("TAEE11"), any()))

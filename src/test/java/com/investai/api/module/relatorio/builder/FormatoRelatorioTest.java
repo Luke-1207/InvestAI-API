@@ -37,6 +37,16 @@ class FormatoRelatorioTest {
     }
 
     @Test
+    @DisplayName("telefone - deve formatar celular e fixo, e devolver como veio se o tamanho for outro")
+    void telefone_deveFormatarCelularEFixo() {
+        assertThat(FormatoRelatorio.telefone("19999998888")).isEqualTo("(19) 99999-8888");
+        assertThat(FormatoRelatorio.telefone("1933334444")).isEqualTo("(19) 3333-4444");
+        assertThat(FormatoRelatorio.telefone("12345")).isEqualTo("12345");
+        assertThat(FormatoRelatorio.telefone(" ")).isNull();
+        assertThat(FormatoRelatorio.telefone(null)).isNull();
+    }
+
+    @Test
     @DisplayName("todos os formatadores devem devolver null quando o valor é null")
     void valorNulo_deveDevolverNull() {
         assertThat(FormatoRelatorio.moeda(null)).isNull();

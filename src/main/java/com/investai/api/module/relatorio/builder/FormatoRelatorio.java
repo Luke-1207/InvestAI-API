@@ -54,6 +54,19 @@ public final class FormatoRelatorio {
         };
     }
 
+    public static String telefone(String digitos) {
+        if (digitos == null || digitos.isBlank()) {
+            return null;
+        }
+        if (digitos.length() == 11) {
+            return "(" + digitos.substring(0, 2) + ") " + digitos.substring(2, 7) + "-" + digitos.substring(7);
+        }
+        if (digitos.length() == 10) {
+            return "(" + digitos.substring(0, 2) + ") " + digitos.substring(2, 6) + "-" + digitos.substring(6);
+        }
+        return digitos;
+    }
+
     public static String data(LocalDate valor) {
         return valor == null ? null : valor.format(DATA);
     }

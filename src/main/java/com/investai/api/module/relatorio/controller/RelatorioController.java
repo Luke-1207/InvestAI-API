@@ -47,6 +47,11 @@ public class RelatorioController {
                 request, usuarioAutenticadoHelper.getUsuarioLogado()));
     }
 
+    @GetMapping("/perfil")
+    public ResponseEntity<byte[]> gerarRelatorioPerfil() {
+        return comoDownload(relatorioService.gerarRelatorioPerfil(usuarioAutenticadoHelper.getUsuarioLogado()));
+    }
+
     private ResponseEntity<byte[]> comoDownload(RelatorioGeradoDTO relatorio) {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
