@@ -17,6 +17,7 @@ import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
 import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
 import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
+import com.investai.api.module.relatorio.entity.TipoRelatorio;
 import com.investai.api.module.perfil.service.PerfilService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class RelatorioService {
+
+    public static final String PREFIXO_REFERENCIA_LISTAGEM = "LISTAGEM_";
+    public static final String REFERENCIA_PERFIL = "PERFIL";
 
     private static final String NOME_ARQUIVO_PERFIL = "perfil-investidor.pdf";
 
@@ -45,6 +49,7 @@ public class RelatorioService {
     private final RelatorioListagemService relatorioListagemService;
     private final RelatorioListagemBuilder relatorioListagemBuilder;
     private final RelatorioPerfilBuilder relatorioPerfilBuilder;
+    private final HistoricoRelatorioService historicoRelatorioService;
 
     public RelatorioGeradoDTO gerarRelatorioAtivoVariavel(String codigo, Usuario usuario) {
         AcaoDetalheResponseDTO ativo = acaoDetalheService.obterDetalhe(codigo, PeriodoHistorico.UM_ANO.getCodigo());
@@ -58,9 +63,10 @@ public class RelatorioService {
                 .resumoIa(resumoAtivoService.obterResumo(usuario.getId(), ativo).orElse(null))
                 .build();
 
-        return new RelatorioGeradoDTO(
-                "analise-" + ativo.getCodigo() + ".pdf",
-                relatorioAtivoBuilder.construir(dados));
+        byte[] pdf = relatorioAtivoBuilder.construir(dados);
+        historicoRelatorioService.registrar(usuario.getId(), TipoRelatorio.ATIVO_INDIVIDUAL, ativo.getCodigo());
+
+        return new RelatorioGeradoDTO("analise-" + ativo.getCodigo() + ".pdf", pdf);
     }
 
     public RelatorioGeradoDTO gerarRelatorioAtivoFixo(String identificador, Usuario usuario) {
@@ -73,17 +79,20 @@ public class RelatorioService {
                 .titulo(titulo)
                 .build();
 
-        return new RelatorioGeradoDTO(
-                "analise-" + paraNomeDeArquivo(titulo.identificador()) + ".pdf",
-                relatorioAtivoBuilder.construir(dados));
+        byte[] pdf = relatorioAtivoBuilder.construir(dados);
+        historicoRelatorioService.registrar(usuario.getId(), TipoRelatorio.ATIVO_INDIVIDUAL, titulo.nome());
+
+        return new RelatorioGeradoDTO("analise-" + paraNomeDeArquivo(titulo.identificador()) + ".pdf", pdf);
     }
 
     public RelatorioGeradoDTO gerarRelatorioListagem(RelatorioListagemRequestDTO request, Usuario usuario) {
         DadosRelatorioListagem dados = relatorioListagemService.montarDados(request, usuario);
 
-        return new RelatorioGeradoDTO(
-                NOMES_ARQUIVO_LISTAGEM.get(request.getModulo()),
-                relatorioListagemBuilder.construir(dados));
+        byte[] pdf = relatorioListagemBuilder.construir(dados);
+        historicoRelatorioService.registrar(
+                usuario.getId(), TipoRelatorio.LISTAGEM, PREFIXO_REFERENCIA_LISTAGEM + request.getModulo().name());
+
+        return new RelatorioGeradoDTO(NOMES_ARQUIVO_LISTAGEM.get(request.getModulo()), pdf);
     }
 
     public RelatorioGeradoDTO gerarRelatorioPerfil(Usuario usuario) {
@@ -96,7 +105,10 @@ public class RelatorioService {
                 .perfil(perfilService.obterPerfil(usuario.getId()))
                 .build();
 
-        return new RelatorioGeradoDTO(NOME_ARQUIVO_PERFIL, relatorioPerfilBuilder.construir(dados));
+        byte[] pdf = relatorioPerfilBuilder.construir(dados);
+        historicoRelatorioService.registrar(usuario.getId(), TipoRelatorio.PERFIL, REFERENCIA_PERFIL);
+
+        return new RelatorioGeradoDTO(NOME_ARQUIVO_PERFIL, pdf);
     }
 
     private String paraNomeDeArquivo(String texto) {

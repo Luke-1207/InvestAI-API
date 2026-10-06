@@ -1,5 +1,6 @@
 package com.investai.api.module.relatorio.service;
 
+import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.ResourceNotFoundException;
 import com.investai.api.module.ativo.dto.AcaoDetalheResponseDTO;
 import com.investai.api.module.ativo.entity.TipoAtivo;
@@ -22,6 +23,7 @@ import com.investai.api.module.relatorio.dto.ModuloRelatorio;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
 import com.investai.api.module.relatorio.dto.RelatorioListagemRequestDTO;
 import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
+import com.investai.api.module.relatorio.entity.TipoRelatorio;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -76,6 +78,9 @@ class RelatorioServiceTest {
     @Mock
     private RelatorioPerfilBuilder relatorioPerfilBuilder;
 
+    @Mock
+    private HistoricoRelatorioService historicoRelatorioService;
+
     @InjectMocks
     private RelatorioService relatorioService;
 
@@ -119,6 +124,7 @@ class RelatorioServiceTest {
         assertThat(dados.ativo()).isSameAs(ativo);
         assertThat(dados.compatibilidade()).isSameAs(sugestao);
         assertThat(dados.resumoIa()).isEqualTo("Resumo da IA");
+        verify(historicoRelatorioService).registrar(usuario.getId(), TipoRelatorio.ATIVO_INDIVIDUAL, "TAEE11");
     }
 
     @Test
@@ -145,7 +151,7 @@ class RelatorioServiceTest {
 
         assertThatThrownBy(() -> relatorioService.gerarRelatorioAtivoVariavel("XXXX", usuario))
                 .isInstanceOf(ResourceNotFoundException.class);
-        verifyNoInteractions(relatorioAtivoBuilder);
+        verifyNoInteractions(relatorioAtivoBuilder, historicoRelatorioService);
     }
 
     @Test
@@ -166,6 +172,8 @@ class RelatorioServiceTest {
         assertThat(dadosFixoCaptor.getValue().nomeUsuario()).isEqualTo("Lucas Silva");
         assertThat(dadosFixoCaptor.getValue().perfil()).isSameAs(perfil);
         assertThat(dadosFixoCaptor.getValue().titulo()).isSameAs(titulo);
+        verify(historicoRelatorioService).registrar(
+                usuario.getId(), TipoRelatorio.ATIVO_INDIVIDUAL, "CDB Banco Aliança S.A.");
         verifyNoInteractions(acaoDetalheService, resumoAtivoService);
     }
 
@@ -191,6 +199,7 @@ class RelatorioServiceTest {
         assertThat(dados.cadastradoEm()).isEqualTo(LocalDateTime.of(2026, 3, 15, 9, 30));
         assertThat(dados.geradoEm()).isNotNull();
         assertThat(dados.perfil()).isSameAs(perfil);
+        verify(historicoRelatorioService).registrar(usuarioCompleto.getId(), TipoRelatorio.PERFIL, "PERFIL");
         verifyNoInteractions(acaoDetalheService, resumoAtivoService, relatorioListagemService);
     }
 
@@ -211,5 +220,30 @@ class RelatorioServiceTest {
 
         assertThat(relatorio.nomeArquivo()).isEqualTo(nomeEsperado);
         assertThat(relatorio.conteudo()).isEqualTo(PDF);
+        verify(historicoRelatorioService).registrar(usuario.getId(), TipoRelatorio.LISTAGEM, "LISTAGEM_" + modulo);
+    }
+
+    @Test
+    @DisplayName("gerarRelatorioListagem - falha ao montar os dados não deve registrar histórico")
+    void gerarRelatorioListagem_falhaAoMontar_naoDeveRegistrarHistorico() {
+        RelatorioListagemRequestDTO request = RelatorioListagemRequestDTO.builder().modulo(ModuloRelatorio.FIXA).build();
+        when(relatorioListagemService.montarDados(request, usuario))
+                .thenThrow(new BusinessException("Complete seu perfil"));
+
+        assertThatThrownBy(() -> relatorioService.gerarRelatorioListagem(request, usuario))
+                .isInstanceOf(BusinessException.class);
+        verifyNoInteractions(relatorioListagemBuilder, historicoRelatorioService);
+    }
+
+    @Test
+    @DisplayName("gerarRelatorioPerfil - falha ao construir o PDF não deve registrar histórico")
+    void gerarRelatorioPerfil_falhaAoConstruir_naoDeveRegistrarHistorico() {
+        when(perfilService.obterPerfil(usuario.getId())).thenReturn(perfil);
+        when(relatorioPerfilBuilder.construir(any(DadosRelatorioPerfil.class)))
+                .thenThrow(new IllegalStateException("falha no PDF"));
+
+        assertThatThrownBy(() -> relatorioService.gerarRelatorioPerfil(usuario))
+                .isInstanceOf(IllegalStateException.class);
+        verifyNoInteractions(historicoRelatorioService);
     }
 }
