@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -268,5 +269,25 @@ class GlobalExceptionHandlerTest {
     }
 
     private void metodoFake(Object obj) {
+    }
+
+    @Test
+    void deveTratarTipoDeParametroInvalido() {
+
+        MethodArgumentTypeMismatchException exception =
+                new MethodArgumentTypeMismatchException("CRIPTO", String.class, "tipo", null, null);
+
+        ResponseEntity<Map<String, Object>> response =
+                handler.handleTipoDeParametroInvalido(exception);
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                response.getStatusCode()
+        );
+
+        assertEquals(
+                "Valor inválido para o parâmetro: tipo",
+                response.getBody().get("erro")
+        );
     }
 }
