@@ -106,4 +106,37 @@ class CalculadoraRentabilidadeServiceTest {
         assertThat(resultado.getAliquotaIR()).isEqualByComparingTo("0");
         assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("6.50");
     }
+
+    @Test
+    @DisplayName("calcularAliquotaIR - deve respeitar os limites de cada faixa da tabela regressiva")
+    void calcularAliquotaIR_deveRespeitarLimitesDasFaixas() {
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(0)).isEqualByComparingTo("22.5");
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(180)).isEqualByComparingTo("22.5");
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(181)).isEqualByComparingTo("20.0");
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(360)).isEqualByComparingTo("20.0");
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(361)).isEqualByComparingTo("17.5");
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(720)).isEqualByComparingTo("17.5");
+        assertThat(calculadoraRentabilidadeService.calcularAliquotaIR(721)).isEqualByComparingTo("15.0");
+    }
+
+    @Test
+    @DisplayName("calcularParaPrazo - deve aplicar a alíquota do prazo informado sobre a taxa bruta")
+    void calcularParaPrazo_deveAplicarAliquotaDoPrazo() {
+        RentabilidadeEstimadaDTO resultado =
+                calculadoraRentabilidadeService.calcularParaPrazo(BigDecimal.valueOf(110), false, 180);
+
+        assertThat(resultado.getAliquotaIR()).isEqualByComparingTo("22.5");
+        assertThat(resultado.getTaxaBrutaAnual()).isEqualByComparingTo("110");
+        assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("85.25");
+    }
+
+    @Test
+    @DisplayName("calcularParaPrazo - isento de IR deve manter a taxa em qualquer prazo")
+    void calcularParaPrazo_isento_deveManterTaxa() {
+        RentabilidadeEstimadaDTO resultado =
+                calculadoraRentabilidadeService.calcularParaPrazo(BigDecimal.valueOf(95), true, 90);
+
+        assertThat(resultado.getAliquotaIR()).isEqualByComparingTo("0");
+        assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("95.00");
+    }
 }
