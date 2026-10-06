@@ -1,7 +1,7 @@
 package com.investai.api.module.relatorio.controller;
 
-import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.rabbitmq.dto.ModuloIa;
+import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
 import com.investai.api.module.relatorio.service.RelatorioService;
 import com.investai.api.shared.security.UsuarioAutenticadoHelper;
@@ -24,18 +24,15 @@ public class RelatorioController {
     private final RelatorioService relatorioService;
     private final UsuarioAutenticadoHelper usuarioAutenticadoHelper;
 
-    @GetMapping("/ativo/{codigo}")
+    @GetMapping("/ativo/{identificador}")
     public ResponseEntity<byte[]> gerarRelatorioAtivo(
-            @PathVariable String codigo,
+            @PathVariable String identificador,
             @RequestParam(defaultValue = "VARIAVEL") ModuloIa tipo
     ) {
-        if (tipo != ModuloIa.VARIAVEL) {
-            // TODO INVAI-63: relatório de ativo de renda fixa
-            throw new BusinessException("Relatório de renda fixa ainda não está disponível");
-        }
-
-        RelatorioGeradoDTO relatorio = relatorioService.gerarRelatorioAtivoVariavel(
-                codigo, usuarioAutenticadoHelper.getUsuarioLogado());
+        Usuario usuario = usuarioAutenticadoHelper.getUsuarioLogado();
+        RelatorioGeradoDTO relatorio = tipo == ModuloIa.FIXA
+                ? relatorioService.gerarRelatorioAtivoFixo(identificador, usuario)
+                : relatorioService.gerarRelatorioAtivoVariavel(identificador, usuario);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

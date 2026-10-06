@@ -1,5 +1,7 @@
 package com.investai.api.module.relatorio.builder;
 
+import com.investai.api.module.rendafixa.entity.Indexador;
+
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -34,6 +36,22 @@ public final class FormatoRelatorio {
 
     public static String numero(BigDecimal valor) {
         return valor == null ? null : decimal().format(valor);
+    }
+
+    public static String taxaComIndexador(Indexador indexador, BigDecimal taxa, boolean taxaSomadaAoIndexador) {
+        if (taxa == null) {
+            return null;
+        }
+        String valor = decimal().format(taxa) + "%";
+        if (indexador == null) {
+            return valor;
+        }
+        return switch (indexador) {
+            case CDI -> valor + " do CDI";
+            case SELIC -> taxaSomadaAoIndexador ? "Selic + " + valor + " a.a." : valor + " da Selic";
+            case IPCA -> "IPCA + " + valor + " a.a.";
+            case PREFIXADO -> valor + " a.a.";
+        };
     }
 
     public static String data(LocalDate valor) {

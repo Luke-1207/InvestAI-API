@@ -7,12 +7,15 @@ import com.investai.api.module.ativo.service.AcaoSugestaoService;
 import com.investai.api.module.ativo.service.ResumoAtivoService;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.relatorio.builder.RelatorioAtivoBuilder;
+import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoFixo;
 import com.investai.api.module.relatorio.dto.DadosRelatorioAtivoVariavel;
 import com.investai.api.module.relatorio.dto.RelatorioGeradoDTO;
+import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
 import com.investai.api.module.perfil.service.PerfilService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 
 @Service
@@ -24,6 +27,7 @@ public class RelatorioService {
     private final ResumoAtivoService resumoAtivoService;
     private final PerfilService perfilService;
     private final RelatorioAtivoBuilder relatorioAtivoBuilder;
+    private final RelatorioRendaFixaService relatorioRendaFixaService;
 
     public RelatorioGeradoDTO gerarRelatorioAtivoVariavel(String codigo, Usuario usuario) {
         AcaoDetalheResponseDTO ativo = acaoDetalheService.obterDetalhe(codigo, PeriodoHistorico.UM_ANO.getCodigo());
@@ -40,5 +44,27 @@ public class RelatorioService {
         return new RelatorioGeradoDTO(
                 "analise-" + ativo.getCodigo() + ".pdf",
                 relatorioAtivoBuilder.construir(dados));
+    }
+
+    public RelatorioGeradoDTO gerarRelatorioAtivoFixo(String identificador, Usuario usuario) {
+        TituloRendaFixaRelatorio titulo = relatorioRendaFixaService.buscarTitulo(identificador);
+
+        DadosRelatorioAtivoFixo dados = DadosRelatorioAtivoFixo.builder()
+                .nomeUsuario(usuario.getNome())
+                .geradoEm(LocalDateTime.now())
+                .perfil(perfilService.obterPerfil(usuario.getId()))
+                .titulo(titulo)
+                .build();
+
+        return new RelatorioGeradoDTO(
+                "analise-" + paraNomeDeArquivo(titulo.identificador()) + ".pdf",
+                relatorioAtivoBuilder.construir(dados));
+    }
+
+    private String paraNomeDeArquivo(String texto) {
+        return Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z0-9]+", "-")
+                .replaceAll("(^-+|-+$)", "");
     }
 }

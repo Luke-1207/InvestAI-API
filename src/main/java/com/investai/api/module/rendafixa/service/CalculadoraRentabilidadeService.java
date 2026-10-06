@@ -25,8 +25,12 @@ import java.time.temporal.ChronoUnit;
 public class CalculadoraRentabilidadeService {
 
     public RentabilidadeEstimadaDTO calcular(TituloPrivado titulo) {
-        BigDecimal taxaBruta = titulo.getTaxaPercentual();
-        BigDecimal aliquotaIR = titulo.isIsentoIr() ? BigDecimal.ZERO : calcularAliquotaIR(titulo.getVencimento());
+        long diasParaVencimento = ChronoUnit.DAYS.between(LocalDate.now(), titulo.getVencimento());
+        return calcularParaPrazo(titulo.getTaxaPercentual(), titulo.isIsentoIr(), diasParaVencimento);
+    }
+
+    public RentabilidadeEstimadaDTO calcularParaPrazo(BigDecimal taxaBruta, boolean isentoIr, long prazoEmDias) {
+        BigDecimal aliquotaIR = isentoIr ? BigDecimal.ZERO : calcularAliquotaIR(prazoEmDias);
 
         BigDecimal fatorLiquido = BigDecimal.ONE.subtract(
                 aliquotaIR.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
@@ -40,9 +44,7 @@ public class CalculadoraRentabilidadeService {
                 .build();
     }
 
-    private BigDecimal calcularAliquotaIR(LocalDate vencimento) {
-        long diasParaVencimento = ChronoUnit.DAYS.between(LocalDate.now(), vencimento);
-
+    public BigDecimal calcularAliquotaIR(long diasParaVencimento) {
         if (diasParaVencimento <= 180) return BigDecimal.valueOf(22.5);
         if (diasParaVencimento <= 360) return BigDecimal.valueOf(20.0);
         if (diasParaVencimento <= 720) return BigDecimal.valueOf(17.5);
