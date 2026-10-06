@@ -25,6 +25,12 @@ public class PdfTableComponent {
     }
 
     public Table criar(float[] largurasRelativas, List<String> cabecalhos, List<List<String>> linhas) {
+        return criar(largurasRelativas, cabecalhos, linhas, PdfEstilo.TAMANHO_TEXTO);
+    }
+
+    public Table criar(
+            float[] largurasRelativas, List<String> cabecalhos, List<List<String>> linhas, float tamanhoFonte
+    ) {
         if (cabecalhos.isEmpty()) {
             throw new IllegalArgumentException("A tabela precisa de ao menos uma coluna");
         }
@@ -46,7 +52,7 @@ public class PdfTableComponent {
                     .setPadding(ESPACAMENTO_CELULA)
                     .add(new Paragraph(cabecalho)
                             .setFont(negrito)
-                            .setFontSize(PdfEstilo.TAMANHO_TEXTO)
+                            .setFontSize(tamanhoFonte)
                             .setFontColor(PdfEstilo.COR_SOBRE_MARCA)
                             .setMargin(0)));
         }
@@ -67,7 +73,7 @@ public class PdfTableComponent {
                         .setPadding(ESPACAMENTO_CELULA)
                         .add(new Paragraph(valor == null || valor.isBlank() ? VALOR_VAZIO : valor)
                                 .setFont(normal)
-                                .setFontSize(PdfEstilo.TAMANHO_TEXTO)
+                                .setFontSize(tamanhoFonte)
                                 .setFontColor(PdfEstilo.COR_TEXTO)
                                 .setMargin(0));
                 if (alternada) {
