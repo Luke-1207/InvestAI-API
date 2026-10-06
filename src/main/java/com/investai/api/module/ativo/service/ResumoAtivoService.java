@@ -3,6 +3,7 @@ package com.investai.api.module.ativo.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.investai.api.infra.exception.IaIndisponivelException;
+import com.investai.api.infra.rabbitmq.AtivoIaMapper;
 import com.investai.api.infra.rabbitmq.IaMensagemPublisher;
 import com.investai.api.infra.rabbitmq.PerfilIaMapper;
 import com.investai.api.infra.rabbitmq.dto.ModuloIa;
@@ -16,9 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +49,7 @@ public class ResumoAtivoService {
 
         try {
             ResumoResponseDTO resposta = iaMensagemPublisher.enviarResumoEAguardar(
-                    ModuloIa.VARIAVEL, PerfilIaMapper.dePerfil(perfil.get()), toAtivoMap(ativo));
+                    ModuloIa.VARIAVEL, PerfilIaMapper.dePerfil(perfil.get()), AtivoIaMapper.deAcao(ativo));
 
             if (resposta == null || resposta.getErro() != null
                     || resposta.getResumo() == null || resposta.getResumo().isBlank()) {
@@ -87,35 +85,5 @@ public class ResumoAtivoService {
         return ativo.isCotacaoDisponivel()
                 && ativo.getPreco() != null
                 && ativo.getPreco().signum() > 0;
-    }
-
-    private Map<String, Object> toAtivoMap(AcaoDetalheResponseDTO ativo) {
-        Map<String, Object> mapa = new HashMap<>();
-        mapa.put("codigo", ativo.getCodigo());
-        mapa.put("nome", ativo.getNome());
-        mapa.put("tipo", ativo.getTipo().name());
-        mapa.put("setor", ativo.getSetor());
-        mapa.put("preco", ativo.getPreco());
-        mapa.put("dy", naoNegativo(ativo.getDividendYield()));
-        // TODO: trocar pela variação real de 30 dias quando a cotação passar a trazer esse dado
-        mapa.put("variacao30d", ativo.getVariacaoPercentual() != null ? ativo.getVariacaoPercentual() : BigDecimal.ZERO);
-        if (positivo(ativo.getPrecoLucro())) {
-            mapa.put("pl", ativo.getPrecoLucro());
-        }
-        if (positivo(ativo.getPrecoValorPatrimonial())) {
-            mapa.put("pvp", ativo.getPrecoValorPatrimonial());
-        }
-        if (ativo.getMinimo52Semanas() != null && ativo.getMaximo52Semanas() != null) {
-            mapa.put("variacao52s", Map.of("min", ativo.getMinimo52Semanas(), "max", ativo.getMaximo52Semanas()));
-        }
-        return mapa;
-    }
-
-    private BigDecimal naoNegativo(BigDecimal valor) {
-        return valor == null || valor.signum() < 0 ? BigDecimal.ZERO : valor;
-    }
-
-    private boolean positivo(BigDecimal valor) {
-        return valor != null && valor.signum() > 0;
     }
 }

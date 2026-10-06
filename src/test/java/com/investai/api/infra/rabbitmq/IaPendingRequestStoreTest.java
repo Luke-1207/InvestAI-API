@@ -1,5 +1,6 @@
 package com.investai.api.infra.rabbitmq;
 
+import com.investai.api.infra.rabbitmq.dto.ComparacaoIaResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.RankingResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.ResumoResponseDTO;
 import org.junit.jupiter.api.DisplayName;
@@ -55,5 +56,35 @@ class IaPendingRequestStoreTest {
         store.completarResumo("res-1", response);
 
         assertThat(future.get().getResumo()).isEqualTo("teste");
+    }
+
+    @Test
+    @DisplayName("registrarComparacao + completarComparacao - deve completar o future registrado")
+    void registrarECompletarComparacao_deveCompletarFutureRegistrado() throws Exception {
+        CompletableFuture<ComparacaoIaResponseDTO> future = store.registrarComparacao("cmp-1");
+
+        store.completarComparacao("cmp-1",
+                ComparacaoIaResponseDTO.builder().correlationId("cmp-1").veredito("veredito").build());
+
+        assertThat(future.isDone()).isTrue();
+        assertThat(future.get().getVeredito()).isEqualTo("veredito");
+    }
+
+    @Test
+    @DisplayName("completarComparacao - não deve lançar exceção quando correlationId não está registrado")
+    void completarComparacao_naoDeveLancarExcecaoQuandoCorrelationIdDesconhecido() {
+        assertThatCode(() -> store.completarComparacao("desconhecido",
+                ComparacaoIaResponseDTO.builder().correlationId("desconhecido").build())).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("removerComparacao - deve tornar completarComparacao um no-op depois de removido")
+    void removerComparacao_deveTornarCompletarComparacaoNoOpDepois() {
+        CompletableFuture<ComparacaoIaResponseDTO> future = store.registrarComparacao("cmp-2");
+        store.removerComparacao("cmp-2");
+
+        store.completarComparacao("cmp-2", ComparacaoIaResponseDTO.builder().correlationId("cmp-2").build());
+
+        assertThat(future.isDone()).isFalse();
     }
 }
