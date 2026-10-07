@@ -108,4 +108,49 @@ class IaMensagemPublisherTest {
 
         verify(pendingRequestStore).removerResumo(any());
     }
+
+    @Test
+    @DisplayName("enviarComparacaoEAguardar - deve publicar os dois ativos na fila certa e retornar o veredito")
+    void enviarComparacaoEAguardar_devePublicarERetornarRespostaQuandoConsumerCompleta() {
+        PerfilIaDTO perfil = PerfilIaDTO.builder().build();
+        Map<String, Object> ativoA = Map.of("codigo", "TAEE11");
+        Map<String, Object> ativoB = Map.of("codigo", "tesouro-selic-2029");
+
+        doAnswer(invocation -> {
+            ComparacaoIaRequestDTO request = invocation.getArgument(1);
+            assertThat(request.getPerfil()).isSameAs(perfil);
+            assertThat(request.getAtivoA()).isEqualTo(ativoA);
+            assertThat(request.getAtivoB()).isEqualTo(ativoB);
+            new Thread(() -> {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ignored) {
+                }
+                pendingRequestStore.completarComparacao(request.getCorrelationId(),
+                        ComparacaoIaResponseDTO.builder()
+                                .correlationId(request.getCorrelationId())
+                                .veredito("Veredito de teste")
+                                .build());
+            }).start();
+            return null;
+        }).when(rabbitTemplate).convertAndSend(eq(RabbitConfig.COMPARACAO_REQUEST), any(ComparacaoIaRequestDTO.class));
+
+        ComparacaoIaResponseDTO resposta = iaMensagemPublisher.enviarComparacaoEAguardar(perfil, ativoA, ativoB);
+
+        assertThat(resposta.getVeredito()).isEqualTo("Veredito de teste");
+        assertThat(resposta.getCorrelationId()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("enviarComparacaoEAguardar - deve lançar exceção e limpar o registro pendente quando dá timeout")
+    void enviarComparacaoEAguardar_deveLancarExcecaoELimparRegistroQuandoTimeout() {
+        PerfilIaDTO perfil = PerfilIaDTO.builder().build();
+
+        assertThatThrownBy(() -> iaMensagemPublisher.enviarComparacaoEAguardar(
+                perfil, Map.of("codigo", "TAEE11"), Map.of("codigo", "ITSA4")))
+                .isInstanceOf(IaIndisponivelException.class)
+                .hasMessageContaining("não respondeu a tempo");
+
+        verify(pendingRequestStore).removerComparacao(any());
+    }
 }

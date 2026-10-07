@@ -1,5 +1,6 @@
 package com.investai.api.infra.rabbitmq;
 
+import com.investai.api.infra.rabbitmq.dto.ComparacaoIaResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.RankingResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.ResumoResponseDTO;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,7 @@ public class IaPendingRequestStore {
 
     private final Map<String, CompletableFuture<RankingResponseDTO>> rankingPendentes = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<ResumoResponseDTO>> resumoPendentes = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<ComparacaoIaResponseDTO>> comparacaoPendentes = new ConcurrentHashMap<>();
 
     public CompletableFuture<RankingResponseDTO> registrarRanking(String correlationId) {
         CompletableFuture<RankingResponseDTO> future = new CompletableFuture<>();
@@ -46,5 +48,22 @@ public class IaPendingRequestStore {
 
     public void removerResumo(String correlationId) {
         resumoPendentes.remove(correlationId);
+    }
+
+    public CompletableFuture<ComparacaoIaResponseDTO> registrarComparacao(String correlationId) {
+        CompletableFuture<ComparacaoIaResponseDTO> future = new CompletableFuture<>();
+        comparacaoPendentes.put(correlationId, future);
+        return future;
+    }
+
+    public void completarComparacao(String correlationId, ComparacaoIaResponseDTO response) {
+        CompletableFuture<ComparacaoIaResponseDTO> future = comparacaoPendentes.remove(correlationId);
+        if (future != null) {
+            future.complete(response);
+        }
+    }
+
+    public void removerComparacao(String correlationId) {
+        comparacaoPendentes.remove(correlationId);
     }
 }
