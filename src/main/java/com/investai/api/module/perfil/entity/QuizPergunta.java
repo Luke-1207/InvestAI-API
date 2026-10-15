@@ -28,6 +28,9 @@ public class QuizPergunta {
     @Column(nullable = false, length = 255)
     private String texto;
 
+    @Column(length = 500)
+    private String apoio;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TipoPergunta tipo;

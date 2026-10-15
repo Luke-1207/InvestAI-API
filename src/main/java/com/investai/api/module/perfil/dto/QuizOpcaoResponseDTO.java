@@ -11,4 +11,5 @@ public class QuizOpcaoResponseDTO {
     private UUID id;
     private String texto;
     private String emoji;
+    private String explicacao;
 }

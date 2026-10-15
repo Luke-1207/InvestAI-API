@@ -12,6 +12,7 @@ import java.util.UUID;
 public class QuizPerguntaResponseDTO {
     private UUID id;
     private String texto;
+    private String apoio;
     private TipoPergunta tipo;
     private boolean obrigatoria;
     private List<QuizOpcaoResponseDTO> opcoes;
