@@ -14,12 +14,14 @@ import com.investai.api.module.perfil.entity.SetorPreferido;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.rendafixa.dto.CategoriaRendaFixa;
 import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
+import com.investai.api.module.rendafixa.service.RendaFixaPontuacaoService;
 import com.investai.api.module.rendafixa.service.RendaFixaUnificadaService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -47,6 +49,9 @@ class DashboardSugestaoServiceTest {
 
     @Mock
     private PerfilInvestidorRepository perfilInvestidorRepository;
+
+    @Spy
+    private RendaFixaPontuacaoService rendaFixaPontuacaoService = new RendaFixaPontuacaoService();
 
     @InjectMocks
     private DashboardSugestaoService dashboardSugestaoService;
@@ -264,7 +269,7 @@ class DashboardSugestaoServiceTest {
     }
 
     @Test
-    @DisplayName("sugerirRendaFixa - deve classificar compatibilidade respeitando os limiares 70/40")
+    @DisplayName("sugerirRendaFixa - título muito alinhado ao perfil deve chegar à compatibilidade Alta (80 ou mais)")
     void sugerirRendaFixa_deveClassificarCompatibilidadeAlta() {
         UUID usuarioId = UUID.randomUUID();
         RendaFixaListagemResponseDTO titulo = criarTitulo(CategoriaRendaFixa.TESOURO, "SELIC",

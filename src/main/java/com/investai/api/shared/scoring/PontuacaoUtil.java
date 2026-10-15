@@ -8,6 +8,9 @@ import java.util.Objects;
 
 public final class PontuacaoUtil {
 
+    public static final int LIMIAR_ALTA = 80;
+    public static final int LIMIAR_MEDIA = 50;
+
     private PontuacaoUtil() {
     }
 
@@ -17,8 +20,8 @@ public final class PontuacaoUtil {
     }
 
     public static Compatibilidade classificarCompatibilidade(int score) {
-        if (score >= 70) return Compatibilidade.ALTA;
-        if (score >= 40) return Compatibilidade.MEDIA;
+        if (score >= LIMIAR_ALTA) return Compatibilidade.ALTA;
+        if (score >= LIMIAR_MEDIA) return Compatibilidade.MEDIA;
         return Compatibilidade.BAIXA;
     }
 
