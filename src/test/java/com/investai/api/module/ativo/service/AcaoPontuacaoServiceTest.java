@@ -127,18 +127,93 @@ class AcaoPontuacaoServiceTest {
         assertThat(score).isBetween(0, 100);
     }
 
+    private SetorPreferido setor(String nome, PreferenciaSetor preferencia) {
+        return SetorPreferido.builder().setor(nome).preferencia(preferencia).build();
+    }
+
+    private SugestaoAtivoItemDTO pontuar(PerfilInvestidor perfil, String setorAcao, double preco, double variacao, double dy) {
+        Acao acao = criarAcao("TEST3", TipoAtivo.ACAO, setorAcao);
+        when(cotacaoService.obterCotacao("TEST3")).thenReturn(criarCotacao(
+                BigDecimal.valueOf(preco), BigDecimal.valueOf(variacao), BigDecimal.valueOf(dy)));
+        return acaoPontuacaoService.pontuarAcao(acao, perfil);
+    }
+
     @Test
-    @DisplayName("pontuarAcao - deve classificar compatibilidade respeitando os limiares 70/40 (MEDIA quando abaixo de 70)")
-    void pontuarAcao_deveClassificarCompatibilidadeMedia() {
-        Acao acao = criarAcao("PETR4", TipoAtivo.ACAO, "Energia");
-        SetorPreferido pref = SetorPreferido.builder().setor("Energia").preferencia(PreferenciaSetor.PREFERIR).build();
-        PerfilInvestidor perfil = criarPerfil("ARROJADO", "LONGO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999), List.of(pref));
+    @DisplayName("pesos - a soma dos melhores critérios de cada dimensão deve fechar exatamente 100")
+    void pesos_somaDosMaximosDeveSer100() {
+        int maximo = AcaoPontuacaoService.VOLATILIDADE_IDEAL + AcaoPontuacaoService.DY_ALINHADO
+                + AcaoPontuacaoService.HORIZONTE_LONGO + AcaoPontuacaoService.PRECO_ACESSIVEL
+                + AcaoPontuacaoService.SETOR_PREFERIDO;
 
-        when(cotacaoService.obterCotacao("PETR4")).thenReturn(criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(5), BigDecimal.valueOf(1)));
+        assertThat(maximo).isEqualTo(100);
+    }
 
-        SugestaoAtivoItemDTO resultado = acaoPontuacaoService.pontuarAcao(acao, perfil);
+    @Test
+    @DisplayName("pontuarAcao - ação ideal para o perfil deve chegar a 100 e Alta (antes o máximo era 65)")
+    void pontuarAcao_acaoIdealDeveChegarA100() {
+        PerfilInvestidor perfil = criarPerfil("ARROJADO", "LONGO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999),
+                List.of(setor("Energia", PreferenciaSetor.PREFERIR)));
 
-        assertThat(resultado.getScore()).isEqualTo(65);
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 5, 1);
+
+        assertThat(resultado.getScore()).isEqualTo(100);
+        assertThat(resultado.getCompatibilidade().name()).isEqualTo("ALTA");
+    }
+
+    @Test
+    @DisplayName("pontuarAcao - quem não escolheu setores ainda deve conseguir Alta (93)")
+    void pontuarAcao_semSetoresDeveConseguirAlta() {
+        PerfilInvestidor perfil = criarPerfil("MODERADO", "LONGO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999), List.of());
+
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 2, 1);
+
+        assertThat(resultado.getScore()).isEqualTo(93);
+        assertThat(resultado.getCompatibilidade().name()).isEqualTo("ALTA");
+    }
+
+    @Test
+    @DisplayName("pontuarAcao - perfil que quer preservar capital deve valorizar empresas que distribuem lucro (93)")
+    void pontuarAcao_preservarCapitalComDividendos() {
+        PerfilInvestidor perfil = criarPerfil("CONSERVADOR", "LONGO_PRAZO", "PRESERVAR_CAPITAL", BigDecimal.valueOf(9999), List.of());
+
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 0.5, 7);
+
+        assertThat(resultado.getScore()).isEqualTo(93);
+        assertThat(resultado.getJustificativa()).contains("Oscilação de preço compatível");
+    }
+
+    @Test
+    @DisplayName("pontuarAcao - combinação parcial deve ficar em Média (53)")
+    void pontuarAcao_combinacaoParcialDeveFicarEmMedia() {
+        PerfilInvestidor perfil = criarPerfil("MODERADO", "MEDIO_PRAZO", "RENDA_PASSIVA", BigDecimal.valueOf(9999), List.of());
+
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 0.5, 4);
+
+        assertThat(resultado.getScore()).isEqualTo(53);
         assertThat(resultado.getCompatibilidade().name()).isEqualTo("MEDIA");
+    }
+
+    @Test
+    @DisplayName("pontuarAcao - ação oposta ao perfil e em setor evitado deve ficar em 0 e Baixa")
+    void pontuarAcao_acaoOpostaAoPerfilDeveFicarEmZero() {
+        PerfilInvestidor perfil = criarPerfil("CONSERVADOR", "CURTO_PRAZO", "RENDA_PASSIVA", BigDecimal.valueOf(5),
+                List.of(setor("Energia", PreferenciaSetor.EVITAR)));
+
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 5, 1);
+
+        assertThat(resultado.getScore()).isZero();
+        assertThat(resultado.getCompatibilidade().name()).isEqualTo("BAIXA");
+        assertThat(resultado.getJustificativa()).contains("prefere evitar").contains("Oscila mais");
+    }
+
+    @Test
+    @DisplayName("pontuarAcao - arrojado com ação que quase não oscila deve perder pontos e explicar o motivo")
+    void pontuarAcao_arrojadoComBaixaVolatilidade() {
+        PerfilInvestidor perfil = criarPerfil("ARROJADO", "LONGO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999), List.of());
+
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 0.2, 1);
+
+        assertThat(resultado.getScore()).isEqualTo(48);
+        assertThat(resultado.getJustificativa()).contains("Baixo DY sugere").doesNotContain("compatível com o seu perfil de risco");
     }
 }
