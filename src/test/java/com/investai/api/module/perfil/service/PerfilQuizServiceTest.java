@@ -66,6 +66,10 @@ class PerfilQuizServiceTest {
     private static final UUID OPCAO_SETOR_TECNOLOGIA_ID = UUID.randomUUID();
     private static final UUID OPCAO_SETOR_NAO_FILTRAR_ID = UUID.randomUUID();
 
+    private static final UUID PERGUNTA_SETORES_EVITAR_ID = UUID.randomUUID();
+    private static final UUID OPCAO_EVITAR_TECNOLOGIA_ID = UUID.randomUUID();
+    private static final UUID OPCAO_EVITAR_AGRO_ID = UUID.randomUUID();
+
     @Test
     @DisplayName("obterQuiz - deve mapear perguntas e opções preservando a ordem e sem expor mapeamento_json")
     void obterQuiz_deveMapearPerguntasEOpcoesPreservandoOrdem() {
@@ -76,6 +80,7 @@ class PerfilQuizServiceTest {
                 .id(perguntaObjetivoId)
                 .ordem(1)
                 .texto("O que você quer conquistar com seus investimentos?")
+                .apoio("Não existe resposta certa.")
                 .tipo(TipoPergunta.UNICA_ESCOLHA)
                 .campoPerfil(CampoPerfilQuiz.OBJETIVO_FINANCEIRO)
                 .obrigatoria(true)
@@ -88,6 +93,7 @@ class PerfilQuizServiceTest {
                         .ordem(1)
                         .texto("Receber uma renda todo mês, sem precisar vender nada")
                         .emoji("💰")
+                        .explicacao("Prioriza ativos que distribuem rendimentos com frequência.")
                         .mapeamentoJson(Map.of("objetivo", "RENDA_PASSIVA"))
                         .build(),
                 QuizOpcao.builder()
@@ -134,6 +140,10 @@ class PerfilQuizServiceTest {
         assertThat(response.getPerguntas().get(0).getOpcoes().get(0).getTexto())
                 .isEqualTo("Receber uma renda todo mês, sem precisar vender nada");
         assertThat(response.getPerguntas().get(0).getOpcoes().get(0).getEmoji()).isEqualTo("💰");
+        assertThat(response.getPerguntas().get(0).getApoio()).isEqualTo("Não existe resposta certa.");
+        assertThat(response.getPerguntas().get(0).getOpcoes().get(0).getExplicacao())
+                .isEqualTo("Prioriza ativos que distribuem rendimentos com frequência.");
+        assertThat(response.getPerguntas().get(0).getOpcoes().get(1).getExplicacao()).isNull();
 
         assertThat(response.getPerguntas().get(1).getId()).isEqualTo(perguntaSetoresId);
         assertThat(response.getPerguntas().get(1).isObrigatoria()).isFalse();
@@ -241,6 +251,60 @@ class PerfilQuizServiceTest {
         ArgumentCaptor<PerfilInvestidor> captor = ArgumentCaptor.forClass(PerfilInvestidor.class);
         verify(perfilInvestidorRepository).save(captor.capture());
         assertThat(captor.getValue().getSetoresPreferidos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("submeterQuiz - deve salvar setores para ver com destaque e setores para evitar")
+    void submeterQuiz_deveSalvarSetoresPreferidosEEvitados() {
+        UUID usuarioId = UUID.randomUUID();
+        when(quizPerguntaRepository.findAllByAtivaTrueOrderByOrdemAsc()).thenReturn(criarPerguntasCompletas());
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfilVazioMock()));
+        when(perfilInvestidorRepository.save(any(PerfilInvestidor.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SubmeterQuizRequestDTO dto = montarRequestDTO(
+                resposta(PERGUNTA_OBJETIVO_ID, OPCAO_OBJETIVO_CRESCIMENTO_ID),
+                resposta(PERGUNTA_HORIZONTE_ID, OPCAO_HORIZONTE_LONGO_ID),
+                resposta(PERGUNTA_RISCO_ID, OPCAO_RISCO_MODERADO_ID),
+                resposta(PERGUNTA_VALOR_ID, OPCAO_VALOR_FAIXA_500_2000_ID),
+                respostaMultipla(PERGUNTA_TIPOS_ID, OPCAO_TIPO_ACAO_ID),
+                resposta(PERGUNTA_SETORES_ID, OPCAO_SETOR_TECNOLOGIA_ID),
+                resposta(PERGUNTA_SETORES_EVITAR_ID, OPCAO_EVITAR_AGRO_ID)
+        );
+
+        perfilQuizService.submeterQuiz(usuarioId, dto);
+
+        ArgumentCaptor<PerfilInvestidor> captor = ArgumentCaptor.forClass(PerfilInvestidor.class);
+        verify(perfilInvestidorRepository).save(captor.capture());
+        assertThat(captor.getValue().getSetoresPreferidos())
+                .extracting(SetorPreferido::getSetor, SetorPreferido::getPreferencia)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Tecnologia", PreferenciaSetor.PREFERIR),
+                        org.assertj.core.groups.Tuple.tuple("Agronegócio", PreferenciaSetor.EVITAR));
+    }
+
+    @Test
+    @DisplayName("submeterQuiz - deve recusar o mesmo setor marcado para ver com destaque e para evitar")
+    void submeterQuiz_deveRecusarSetorPreferidoEEvitadoAoMesmoTempo() {
+        UUID usuarioId = UUID.randomUUID();
+        when(quizPerguntaRepository.findAllByAtivaTrueOrderByOrdemAsc()).thenReturn(criarPerguntasCompletas());
+
+        SubmeterQuizRequestDTO dto = montarRequestDTO(
+                resposta(PERGUNTA_OBJETIVO_ID, OPCAO_OBJETIVO_CRESCIMENTO_ID),
+                resposta(PERGUNTA_HORIZONTE_ID, OPCAO_HORIZONTE_LONGO_ID),
+                resposta(PERGUNTA_RISCO_ID, OPCAO_RISCO_MODERADO_ID),
+                resposta(PERGUNTA_VALOR_ID, OPCAO_VALOR_FAIXA_500_2000_ID),
+                respostaMultipla(PERGUNTA_TIPOS_ID, OPCAO_TIPO_ACAO_ID),
+                resposta(PERGUNTA_SETORES_ID, OPCAO_SETOR_TECNOLOGIA_ID),
+                resposta(PERGUNTA_SETORES_EVITAR_ID, OPCAO_EVITAR_TECNOLOGIA_ID)
+        );
+
+        assertThatThrownBy(() -> perfilQuizService.submeterQuiz(usuarioId, dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Tecnologia")
+                .hasMessageContaining("ao mesmo tempo");
+
+        verify(perfilInvestidorRepository, never()).save(any());
+        verifyNoInteractions(applicationEventPublisher);
     }
 
     @Test
@@ -434,7 +498,20 @@ class PerfilQuizServiceTest {
                 criarOpcao(perguntaSetores, OPCAO_SETOR_NAO_FILTRAR_ID, "Prefiro não filtrar por setor agora", Map.of())
         ));
 
-        return List.of(perguntaObjetivo, perguntaHorizonte, perguntaRisco, perguntaValor, perguntaTipos, perguntaSetores);
+        QuizPergunta perguntaSetoresEvitar = QuizPergunta.builder()
+                .id(PERGUNTA_SETORES_EVITAR_ID).ordem(7)
+                .texto("E tem algum setor que você prefere evitar?")
+                .tipo(TipoPergunta.MULTIPLA_ESCOLHA).campoPerfil(CampoPerfilQuiz.SETORES_PREFERIDOS)
+                .obrigatoria(false).ativa(true).build();
+        perguntaSetoresEvitar.setOpcoes(List.of(
+                criarOpcao(perguntaSetoresEvitar, OPCAO_EVITAR_TECNOLOGIA_ID, "Tecnologia",
+                        Map.of("setor", "Tecnologia", "preferencia", "EVITAR")),
+                criarOpcao(perguntaSetoresEvitar, OPCAO_EVITAR_AGRO_ID, "Agronegócio",
+                        Map.of("setor", "Agronegócio", "preferencia", "EVITAR"))
+        ));
+
+        return List.of(perguntaObjetivo, perguntaHorizonte, perguntaRisco, perguntaValor, perguntaTipos,
+                perguntaSetores, perguntaSetoresEvitar);
     }
 
     private QuizOpcao criarOpcao(QuizPergunta pergunta, UUID id, String texto, Map<String, Object> mapeamento) {

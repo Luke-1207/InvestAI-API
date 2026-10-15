@@ -36,6 +36,9 @@ public class QuizOpcao {
     @Column(length = 10)
     private String emoji;
 
+    @Column(length = 500)
+    private String explicacao;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "mapeamento_json", nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> mapeamentoJson;
