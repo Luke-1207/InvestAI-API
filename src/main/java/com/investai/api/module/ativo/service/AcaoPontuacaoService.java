@@ -57,6 +57,26 @@ public class AcaoPontuacaoService {
             Map.entry("setor_evitado", "Setor está entre os que você prefere evitar")
     );
 
+    static final Map<String, String> DESCRICOES_CRITERIOS = Map.ofEntries(
+            Map.entry("volatilidade_ideal", "Oscilação de preço compatível com o seu perfil de risco"),
+            Map.entry("volatilidade_proxima", "Oscilação de preço aceitável para o seu perfil de risco"),
+            Map.entry("volatilidade_alta_demais", "Oscila mais do que o seu perfil de risco costuma tolerar"),
+            Map.entry("volatilidade_baixa_demais", "Oscila pouco para quem aceita mais risco em busca de retorno"),
+            Map.entry("dy_renda_passiva", "Paga bons dividendos, alinhado ao seu objetivo de renda passiva"),
+            Map.entry("dy_renda_passiva_parcial", "Paga dividendos moderados, o que ajuda no objetivo de renda passiva"),
+            Map.entry("dy_crescimento", "Reinveste a maior parte do lucro, alinhado ao crescimento de patrimônio"),
+            Map.entry("dy_crescimento_parcial", "Divide o lucro entre dividendos e crescimento"),
+            Map.entry("dy_crescimento_fraco", "Distribui boa parte do lucro, o que deixa menos espaço para crescer"),
+            Map.entry("dy_preservar", "Distribui parte do lucro, característica de empresas mais maduras"),
+            Map.entry("dy_preservar_fraco", "Paga poucos dividendos, comum em empresas que ainda estão crescendo"),
+            Map.entry("horizonte_longo", "Renda variável combina com o seu horizonte de longo prazo"),
+            Map.entry("horizonte_medio", "Seu horizonte de médio prazo comporta uma parte em renda variável"),
+            Map.entry("preco_acessivel", "O preço de uma cota cabe no valor que você tem disponível"),
+            Map.entry("setor_preferido", "Setor está entre os que você quer ver com destaque"),
+            Map.entry("setor_neutro", "Setor sem preferência sua, conta como neutro"),
+            Map.entry("setor_evitado", "Setor está entre os que você prefere evitar")
+    );
+
     private final CotacaoService cotacaoService;
 
     public SugestaoAtivoItemDTO pontuarAcao(Acao acao, PerfilInvestidor perfil) {
@@ -81,6 +101,7 @@ public class AcaoPontuacaoService {
                 .score(score)
                 .compatibilidade(PontuacaoUtil.classificarCompatibilidade(score))
                 .justificativa(PontuacaoUtil.gerarJustificativa(criterios, TEMPLATES_JUSTIFICATIVA_ACAO))
+                .criterios(PontuacaoUtil.listarCriterios(criterios, DESCRICOES_CRITERIOS))
                 .build();
     }
 

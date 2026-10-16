@@ -161,6 +161,54 @@ class AcaoPontuacaoServiceTest {
     }
 
     @Test
+    @DisplayName("pontuarAcao - deve devolver os critérios que somaram e os que tiraram pontos, em linguagem simples")
+    void pontuarAcao_deveDevolverCriterios() {
+        PerfilInvestidor perfil = criarPerfil("CONSERVADOR", "LONGO_PRAZO", "RENDA_PASSIVA", BigDecimal.valueOf(9999),
+                List.of(setor("Energia", PreferenciaSetor.EVITAR)));
+
+        SugestaoAtivoItemDTO resultado = pontuar(perfil, "Energia", 10, 5, 7);
+
+        assertThat(resultado.getCriterios())
+                .extracting(c -> c.getChave(), c -> c.getPontos())
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("dy_renda_passiva", 25),
+                        org.assertj.core.groups.Tuple.tuple("horizonte_longo", 15),
+                        org.assertj.core.groups.Tuple.tuple("preco_acessivel", 10),
+                        org.assertj.core.groups.Tuple.tuple("volatilidade_alta_demais", -10),
+                        org.assertj.core.groups.Tuple.tuple("setor_evitado", -20));
+        assertThat(resultado.getCriterios()).allSatisfy(c -> assertThat(c.getDescricao()).isNotBlank());
+        assertThat(resultado.getCriterios().stream().mapToInt(c -> c.getPontos()).sum()).isEqualTo(resultado.getScore());
+    }
+
+    @Test
+    @DisplayName("pontuarAcao - todo critério possível deve ter descrição, e a soma deles deve explicar o score")
+    void pontuarAcao_todoCriterioDeveTerDescricao() {
+        String[] riscos = {"CONSERVADOR", "MODERADO", "ARROJADO"};
+        String[] horizontes = {"CURTO_PRAZO", "MEDIO_PRAZO", "LONGO_PRAZO"};
+        String[] objetivos = {"RENDA_PASSIVA", "CRESCIMENTO_PATRIMONIO", "PRESERVAR_CAPITAL"};
+        double[] variacoes = {0.5, 2, 5};
+        double[] dys = {1, 4, 8};
+        org.mockito.Mockito.lenient().when(cotacaoService.obterCotacao(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> criarCotacao(BigDecimal.TEN, BigDecimal.valueOf(variacaoAtual[0]), BigDecimal.valueOf(dyAtual[0])));
+        for (String risco : riscos) for (String horizonte : horizontes) for (String objetivo : objetivos)
+            for (double variacao : variacoes) for (double dy : dys) for (String setorAcao : new String[]{"Energia", "Bancos", "Varejo"}) {
+                variacaoAtual[0] = variacao;
+                dyAtual[0] = dy;
+                PerfilInvestidor perfil = criarPerfil(risco, horizonte, objetivo, BigDecimal.valueOf(5000),
+                        List.of(setor("Energia", PreferenciaSetor.PREFERIR), setor("Bancos", PreferenciaSetor.EVITAR)));
+
+                SugestaoAtivoItemDTO resultado = acaoPontuacaoService.pontuarAcao(criarAcao("X", TipoAtivo.ACAO, setorAcao), perfil);
+
+                int soma = resultado.getCriterios().stream().mapToInt(c -> c.getPontos()).sum();
+                assertThat(Math.max(0, Math.min(100, soma))).isEqualTo(resultado.getScore());
+                assertThat(resultado.getCriterios()).allSatisfy(c -> assertThat(c.getDescricao()).isNotBlank());
+            }
+    }
+
+    private final double[] variacaoAtual = {0};
+    private final double[] dyAtual = {0};
+
+    @Test
     @DisplayName("pontuarAcao - quem não escolheu setores ainda deve conseguir Alta (93)")
     void pontuarAcao_semSetoresDeveConseguirAlta() {
         PerfilInvestidor perfil = criarPerfil("MODERADO", "LONGO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999), List.of());
