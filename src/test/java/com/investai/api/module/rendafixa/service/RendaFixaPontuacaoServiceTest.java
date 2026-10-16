@@ -103,6 +103,28 @@ class RendaFixaPontuacaoServiceTest {
     }
 
     @Test
+    @DisplayName("todo critério possível deve ter uma descrição em linguagem simples, e a soma deles deve explicar o score")
+    void todoCriterioDeveTerDescricao() {
+        String[] riscos = {"CONSERVADOR", "MODERADO", "ARROJADO"};
+        String[] horizontes = {"CURTO_PRAZO", "MEDIO_PRAZO", "LONGO_PRAZO"};
+        String[] objetivos = {"RENDA_PASSIVA", "CRESCIMENTO_PATRIMONIO", "PRESERVAR_CAPITAL"};
+        String[] indexadores = {"SELIC", "CDI", "IPCA", "PREFIXADO"};
+        int[] prazos = {100, 1000, 3000};
+        for (String risco : riscos) for (String horizonte : horizontes) for (String objetivo : objetivos)
+            for (String indexador : indexadores) for (int prazo : prazos) for (String liquidez : new String[]{"DIARIA", "NO_VENCIMENTO"}) {
+                CategoriaRendaFixa categoria = "SELIC".equals(indexador) ? CategoriaRendaFixa.TESOURO : CategoriaRendaFixa.CDB;
+                Map<String, Integer> criterios = service.avaliarCriterios(
+                        titulo(categoria, indexador, prazo, liquidez, prazo == 1000, prazo != 3000, prazo == 100 ? 10 : 99999),
+                        perfil(risco, horizonte, objetivo, 5000));
+
+                assertThat(RendaFixaPontuacaoService.DESCRICOES_CRITERIOS).containsKeys(criterios.keySet().toArray(String[]::new));
+                int soma = PontuacaoUtil.listarCriterios(criterios, RendaFixaPontuacaoService.DESCRICOES_CRITERIOS)
+                        .stream().mapToInt(c -> c.getPontos()).sum();
+                assertThat(Math.max(0, Math.min(100, soma))).isEqualTo(score(criterios));
+            }
+    }
+
+    @Test
     @DisplayName("renda passiva deve preferir títulos isentos de IR")
     void rendaPassiva_devePreferirIsento() {
         PerfilInvestidor perfil = perfil("MODERADO", "MEDIO_PRAZO", "RENDA_PASSIVA", 9999);

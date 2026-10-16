@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +18,26 @@ class PontuacaoUtilTest {
     @DisplayName("classificarCompatibilidade - Alta a partir de 80 e Média a partir de 50")
     void classificarCompatibilidade_deveUsarOsNovosLimiares(int score, Compatibilidade esperada) {
         assertThat(PontuacaoUtil.classificarCompatibilidade(score)).isEqualTo(esperada);
+    }
+
+    @Test
+    @DisplayName("listarCriterios - deve listar do que mais somou ao que mais tirou, ignorando zeros e chaves sem descrição")
+    void listarCriterios_deveOrdenarEFiltrar() {
+        Map<String, Integer> criterios = new LinkedHashMap<>();
+        criterios.put("setor_evitado", -20);
+        criterios.put("preco", 10);
+        criterios.put("zero", 0);
+        criterios.put("sem_descricao", 5);
+        criterios.put("volatilidade", 35);
+        Map<String, String> descricoes = Map.of(
+                "setor_evitado", "Setor evitado", "preco", "Preço acessível", "zero", "Zero", "volatilidade", "Oscilação ideal");
+
+        assertThat(PontuacaoUtil.listarCriterios(criterios, descricoes))
+                .extracting(CriterioScoreDTO::getChave, CriterioScoreDTO::getPontos)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("volatilidade", 35),
+                        org.assertj.core.groups.Tuple.tuple("preco", 10),
+                        org.assertj.core.groups.Tuple.tuple("setor_evitado", -20));
     }
 
     @Test

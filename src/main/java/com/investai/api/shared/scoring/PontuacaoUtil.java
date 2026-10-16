@@ -2,6 +2,7 @@ package com.investai.api.shared.scoring;
 
 import com.investai.api.infra.rabbitmq.dto.Compatibilidade;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +24,14 @@ public final class PontuacaoUtil {
         if (score >= LIMIAR_ALTA) return Compatibilidade.ALTA;
         if (score >= LIMIAR_MEDIA) return Compatibilidade.MEDIA;
         return Compatibilidade.BAIXA;
+    }
+
+    public static List<CriterioScoreDTO> listarCriterios(Map<String, Integer> criterios, Map<String, String> descricoes) {
+        return criterios.entrySet().stream()
+                .filter(e -> e.getValue() != 0 && descricoes.containsKey(e.getKey()))
+                .map(e -> new CriterioScoreDTO(e.getKey(), descricoes.get(e.getKey()), e.getValue()))
+                .sorted(Comparator.comparingInt(CriterioScoreDTO::getPontos).reversed())
+                .toList();
     }
 
     public static String gerarJustificativa(Map<String, Integer> criterios, Map<String, String> templates) {

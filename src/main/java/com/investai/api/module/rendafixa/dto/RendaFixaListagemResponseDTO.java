@@ -1,11 +1,13 @@
 package com.investai.api.module.rendafixa.dto;
 
 import com.investai.api.infra.rabbitmq.dto.Compatibilidade;
+import com.investai.api.shared.scoring.CriterioScoreDTO;
 import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -25,4 +27,5 @@ public class RendaFixaListagemResponseDTO {
     private Integer score;
     private Compatibilidade compatibilidade;
     private String justificativa;
+    private List<CriterioScoreDTO> criterios;
 }

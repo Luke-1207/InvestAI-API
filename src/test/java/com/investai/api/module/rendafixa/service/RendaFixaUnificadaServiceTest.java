@@ -11,6 +11,7 @@ import com.investai.api.module.rendafixa.entity.*;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
 import com.investai.api.shared.event.PerfilAlteradoEvent;
+import com.investai.api.shared.scoring.CriterioScoreDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -140,7 +141,8 @@ class RendaFixaUnificadaServiceTest {
                 .correlationId("qualquer")
                 .ativos(List.of(
                         AtivoRankeadoDTO.builder().codigo(tesouro.getId().toString()).score(60).compatibilidade(Compatibilidade.MEDIA).justificativa("ok").build(),
-                        AtivoRankeadoDTO.builder().codigo(cdb.getId().toString()).score(92).compatibilidade(Compatibilidade.ALTA).justificativa("ótimo").build()
+                        AtivoRankeadoDTO.builder().codigo(cdb.getId().toString()).score(92).compatibilidade(Compatibilidade.ALTA).justificativa("ótimo")
+                                .criterios(List.of(new CriterioScoreDTO("garantia_fgc", "Garantido pelo FGC", 5))).build()
                 ))
                 .build();
 
@@ -153,6 +155,7 @@ class RendaFixaUnificadaServiceTest {
         assertThat(resultado.get(0).getScore()).isEqualTo(92);
         assertThat(resultado.get(0).getCompatibilidade()).isEqualTo(Compatibilidade.ALTA);
         assertThat(resultado.get(1).getScore()).isEqualTo(60);
+        assertThat(resultado.get(0).getCriterios()).extracting(CriterioScoreDTO::getChave).containsExactly("garantia_fgc");
     }
 
     @Test

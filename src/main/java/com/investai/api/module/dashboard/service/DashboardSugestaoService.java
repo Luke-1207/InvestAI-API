@@ -83,6 +83,7 @@ public class DashboardSugestaoService {
                 .score(score)
                 .compatibilidade(PontuacaoUtil.classificarCompatibilidade(score))
                 .justificativa(PontuacaoUtil.gerarJustificativa(criterios, RendaFixaPontuacaoService.TEMPLATES_JUSTIFICATIVA))
+                .criterios(PontuacaoUtil.listarCriterios(criterios, RendaFixaPontuacaoService.DESCRICOES_CRITERIOS))
                 .build();
     }
 }

@@ -59,6 +59,28 @@ public class RendaFixaPontuacaoService {
             Map.entry("garantia_fgc", "Garantia do FGC traz segurança adicional")
     );
 
+    public static final Map<String, String> DESCRICOES_CRITERIOS = Map.ofEntries(
+            Map.entry("indexador_ideal", "Indexador mais indicado para o seu perfil de risco"),
+            Map.entry("indexador_adequado", "Indexador que combina bem com o seu perfil de risco"),
+            Map.entry("indexador_aceitavel", "Indexador possível para o seu perfil, mas não o mais indicado"),
+            Map.entry("vencimento_no_horizonte", "Vence dentro do prazo em que você pretende usar o dinheiro"),
+            Map.entry("vencimento_proximo_horizonte", "Vence um pouco antes ou depois do prazo que você informou"),
+            Map.entry("vencimento_muito_alem_horizonte", "Vence muito longe do prazo em que você pretende usar o dinheiro"),
+            Map.entry("liquidez_diaria", "Liquidez diária: você pode resgatar quando precisar"),
+            Map.entry("liquidez_no_vencimento_longo", "Resgate só no vencimento, sem problema para o seu horizonte de longo prazo"),
+            Map.entry("liquidez_no_vencimento_medio", "Resgate só no vencimento, aceitável para o seu horizonte de médio prazo"),
+            Map.entry("isento_ir_renda_passiva", "Isento de Imposto de Renda, o que aumenta a renda que chega até você"),
+            Map.entry("renda_passiva_tributada", "Paga Imposto de Renda, o que reduz um pouco a renda líquida"),
+            Map.entry("indexador_protege_inflacao", "Atrelado ao IPCA, protege o seu dinheiro da inflação"),
+            Map.entry("pos_fixado_preservar", "Rende acompanhando os juros, de forma estável"),
+            Map.entry("prefixado_preservar", "Taxa fixa pode perder para a inflação, menos indicada para preservar capital"),
+            Map.entry("taxa_crescimento", "Taxa travada ou ligada à inflação, boa para crescer no longo prazo"),
+            Map.entry("pos_fixado_crescimento", "Rende acompanhando os juros, com crescimento mais modesto no longo prazo"),
+            Map.entry("investimento_acessivel", "O investimento mínimo cabe no valor que você tem disponível"),
+            Map.entry("garantia_tesouro", "Título público, garantido pelo Tesouro Nacional"),
+            Map.entry("garantia_fgc", "Garantido pelo FGC até R$ 250 mil por CPF em cada instituição")
+    );
+
     public Map<String, Integer> avaliarCriterios(RendaFixaListagemResponseDTO titulo, PerfilInvestidor perfil) {
         Map<String, Integer> criterios = new LinkedHashMap<>();
         PerfilRisco perfilRisco = PerfilRisco.valueOf(perfil.getPerfilRisco());

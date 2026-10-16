@@ -115,6 +115,7 @@ public class RendaFixaUnificadaService {
                         item.setScore(ranking.getScore());
                         item.setCompatibilidade(ranking.getCompatibilidade());
                         item.setJustificativa(ranking.getJustificativa());
+                        item.setCriterios(ranking.getCriterios());
                     }
                 })
                 .sorted(Comparator.comparing(
