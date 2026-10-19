@@ -15,6 +15,7 @@ import java.util.UUID;
 @Builder
 public class SugestaoRendaFixaItemDTO {
     private UUID id;
+    private String codigo;
     private CategoriaRendaFixa categoria;
     private String nome;
     private BigDecimal taxa;

@@ -76,6 +76,7 @@ public class DashboardSugestaoService {
 
         return SugestaoRendaFixaItemDTO.builder()
                 .id(item.getId())
+                .codigo(item.getCodigo())
                 .categoria(item.getCategoria())
                 .nome(item.getNome())
                 .taxa(item.getTaxa())
