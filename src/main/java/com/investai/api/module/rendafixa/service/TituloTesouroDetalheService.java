@@ -16,6 +16,7 @@ public class TituloTesouroDetalheService {
     private static final String LIQUIDEZ_DIARIA = "DIARIA";
 
     private final TituloTesouroRepository tituloTesouroRepository;
+    private final CalculadoraRentabilidadeService calculadoraRentabilidadeService;
 
     public TituloTesouroDetalheResponseDTO obterDetalhe(String codigo) {
         TituloTesouro titulo = tituloTesouroRepository.findByCodigo(codigo)
@@ -33,6 +34,7 @@ public class TituloTesouroDetalheService {
                 .vencimento(titulo.getVencimento())
                 .pagaJurosSemestrais(titulo.isPagaJurosSemestrais())
                 .liquidez(LIQUIDEZ_DIARIA)
+                .rentabilidadeEstimada(calculadoraRentabilidadeService.calcular(titulo))
                 .resumoIA(null)
                 .build();
     }

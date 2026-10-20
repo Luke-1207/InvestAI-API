@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -27,6 +28,9 @@ class TituloTesouroDetalheServiceTest {
     @Mock
     private TituloTesouroRepository tituloTesouroRepository;
 
+    @Spy
+    private CalculadoraRentabilidadeService calculadoraRentabilidadeService;
+
     @InjectMocks
     private TituloTesouroDetalheService tituloTesouroDetalheService;
 
@@ -40,7 +44,7 @@ class TituloTesouroDetalheServiceTest {
                 .tipo(TipoTesouro.SELIC)
                 .taxaAnual(BigDecimal.valueOf(0.05))
                 .precoMinimo(BigDecimal.valueOf(150.00))
-                .vencimento(LocalDate.of(2029, 3, 1))
+                .vencimento(LocalDate.now().plusYears(3))
                 .pagaJurosSemestrais(false)
                 .disponivel(true)
                 .build();
@@ -54,6 +58,33 @@ class TituloTesouroDetalheServiceTest {
         assertThat(resultado.getTipo().getDescricao()).contains("taxa básica de juros");
         assertThat(resultado.getLiquidez()).isEqualTo("DIARIA");
         assertThat(resultado.getResumoIA()).isNull();
+        assertThat(resultado.getRentabilidadeEstimada().isTaxaSomadaAoIndexador()).isTrue();
+        assertThat(resultado.getRentabilidadeEstimada().getTaxaLiquidaAnual()).isNull();
+        assertThat(resultado.getRentabilidadeEstimada().getPercentualRendimentoLiquido()).isEqualByComparingTo("85.0");
+    }
+
+    @Test
+    @DisplayName("obterDetalhe - prefixado deve trazer a taxa líquida na mesma unidade da taxa bruta")
+    void obterDetalhe_prefixado_deveTrazerTaxaLiquida() {
+        TituloTesouro titulo = TituloTesouro.builder()
+                .id(UUID.randomUUID())
+                .codigo("tesouro-prefixado-2031")
+                .nome("Tesouro Prefixado 2031")
+                .tipo(TipoTesouro.PREFIXADO)
+                .taxaAnual(BigDecimal.valueOf(13.0))
+                .precoMinimo(BigDecimal.valueOf(35.00))
+                .vencimento(LocalDate.now().plusYears(5))
+                .pagaJurosSemestrais(false)
+                .disponivel(true)
+                .build();
+
+        when(tituloTesouroRepository.findByCodigo("tesouro-prefixado-2031")).thenReturn(Optional.of(titulo));
+
+        TituloTesouroDetalheResponseDTO resultado = tituloTesouroDetalheService.obterDetalhe("tesouro-prefixado-2031");
+
+        assertThat(resultado.getRentabilidadeEstimada().isTaxaSomadaAoIndexador()).isFalse();
+        assertThat(resultado.getRentabilidadeEstimada().getAliquotaIR()).isEqualByComparingTo("15.0");
+        assertThat(resultado.getRentabilidadeEstimada().getTaxaLiquidaAnual()).isEqualByComparingTo("11.05");
     }
 
     @Test

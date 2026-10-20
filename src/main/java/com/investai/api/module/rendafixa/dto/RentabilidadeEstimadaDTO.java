@@ -11,4 +11,6 @@ public class RentabilidadeEstimadaDTO {
     private BigDecimal taxaBrutaAnual;
     private BigDecimal aliquotaIR;
     private BigDecimal taxaLiquidaAnual;
+    private boolean taxaSomadaAoIndexador;
+    private BigDecimal percentualRendimentoLiquido;
 }
