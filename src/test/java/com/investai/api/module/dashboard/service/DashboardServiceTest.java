@@ -5,6 +5,7 @@ import com.investai.api.module.dashboard.dto.*;
 import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
+import com.investai.api.shared.event.IndicadoresMercadoAlteradosEvent;
 import com.investai.api.shared.event.PerfilAlteradoEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -177,5 +178,18 @@ class DashboardServiceTest {
 
         verify(perfilService, times(2)).obterPerfil(usuario1);
         verify(perfilService, times(2)).obterPerfil(usuario2);
+    }
+
+    @Test
+    @DisplayName("aoAlterarIndicadores - ajuste manual de Selic e IPCA deve invalidar o dashboard de todos")
+    void aoAlterarIndicadores_deveInvalidarTodosOsDashboards() {
+        UUID usuarioId = UUID.randomUUID();
+        configurarCenarioPadrao(usuarioId);
+
+        dashboardService.obterDashboard(usuarioId);
+        dashboardService.aoAlterarIndicadores(new IndicadoresMercadoAlteradosEvent(this));
+        dashboardService.obterDashboard(usuarioId);
+
+        verify(perfilService, times(2)).obterPerfil(usuarioId);
     }
 }

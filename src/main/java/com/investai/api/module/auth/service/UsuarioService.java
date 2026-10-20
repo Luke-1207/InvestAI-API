@@ -125,6 +125,10 @@ public class UsuarioService {
         alvo.setAtivo(ativo);
         usuarioRepository.save(alvo);
 
+        if (!ativo) {
+            refreshTokenService.revogarTodos(alvo);
+        }
+
         return toDetalheResponseDTO(alvo);
     }
 

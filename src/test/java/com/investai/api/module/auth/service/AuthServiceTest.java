@@ -447,4 +447,29 @@ class AuthServiceTest {
         verify(refreshTokenService)
                 .revogar("refresh-token");
     }
+
+    @Test
+    void naoDeveRenovarSessaoDeContaDesativada() {
+        RefreshRequestDTO dto = RefreshRequestDTO.builder().refreshToken("refresh-de-desativado").build();
+        Usuario desativado = Usuario.builder()
+                .id(UUID.randomUUID())
+                .nome("Lucas")
+                .email("lucas@email.com")
+                .ativo(false)
+                .role(Role.USUARIO)
+                .build();
+        RefreshToken tokenAtual = RefreshToken.builder()
+                .token("refresh-de-desativado")
+                .usuario(desativado)
+                .revogado(false)
+                .expiraEm(LocalDateTime.now().plusDays(7))
+                .build();
+        when(refreshTokenService.buscarValido("refresh-de-desativado")).thenReturn(tokenAtual);
+
+        BusinessException erro = assertThrows(BusinessException.class, () -> authService.refresh(dto));
+
+        assertEquals("Sua conta está desativada. Fale com o suporte da plataforma.", erro.getMessage());
+        verify(jwtUtil, never()).gerarToken(any());
+        verify(refreshTokenService, never()).criar(any());
+    }
 }

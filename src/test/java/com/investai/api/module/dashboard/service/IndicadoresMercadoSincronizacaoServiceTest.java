@@ -8,6 +8,7 @@ import com.investai.api.infra.hgbrasil.dto.IndicadoresMercadoExternoDTO;
 import com.investai.api.module.dashboard.dto.IndicadoresMercadoResponseDTO;
 import com.investai.api.module.dashboard.entity.IndicadoresMercado;
 import com.investai.api.module.dashboard.repository.IndicadoresMercadoRepository;
+import com.investai.api.shared.event.IndicadoresMercadoAlteradosEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -35,6 +37,9 @@ class IndicadoresMercadoSincronizacaoServiceTest {
 
     @Mock
     private BcbClient bcbClient;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private IndicadoresMercadoSincronizacaoService indicadoresMercadoSincronizacaoService;
@@ -146,6 +151,7 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         assertThat(resultado.getIpcaAcumulado12m()).isEqualByComparingTo("4.83");
         assertThat(resultado.getIbovespaPontos()).isEqualByComparingTo("134820.5");
         assertThat(resultado.getSelicIpcaSincronizadoEm()).isNotNull();
+        verify(applicationEventPublisher).publishEvent(any(IndicadoresMercadoAlteradosEvent.class));
     }
 
     @Test

@@ -487,6 +487,7 @@ class UsuarioServiceTest {
 
         assertThat(resultado.isAtivo()).isFalse();
         verify(usuarioRepository).save(alvo);
+        verify(refreshTokenService).revogarTodos(alvo);
     }
 
     @Test
@@ -511,6 +512,7 @@ class UsuarioServiceTest {
 
         assertThat(resultado.isAtivo()).isTrue();
         verify(usuarioRepository).save(alvo);
+        verify(refreshTokenService, never()).revogarTodos(any());
     }
 
     @Test
