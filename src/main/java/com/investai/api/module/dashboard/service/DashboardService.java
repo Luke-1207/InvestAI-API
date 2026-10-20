@@ -9,6 +9,7 @@ import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
 import com.investai.api.module.perfil.dto.PerfilResponseDTO;
 import com.investai.api.module.perfil.service.PerfilService;
 import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
+import com.investai.api.shared.event.IndicadoresMercadoAlteradosEvent;
 import com.investai.api.shared.event.PerfilAlteradoEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -82,6 +83,11 @@ public class DashboardService {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void aoAlterarCatalogo(CatalogoAtivosAlteradoEvent event) {
+        cache.invalidateAll();
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void aoAlterarIndicadores(IndicadoresMercadoAlteradosEvent event) {
         cache.invalidateAll();
     }
 }

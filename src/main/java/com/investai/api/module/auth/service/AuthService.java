@@ -96,6 +96,10 @@ public class AuthService {
 
         refreshTokenService.revogar(dto.getRefreshToken());
 
+        if (!usuario.isEnabled()) {
+            throw new BusinessException("Sua conta está desativada. Fale com o suporte da plataforma.");
+        }
+
         String novoAccessToken = jwtUtil.gerarToken(usuario);
         RefreshToken novoRefreshToken = refreshTokenService.criar(usuario);
 

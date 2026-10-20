@@ -8,8 +8,10 @@ import com.investai.api.infra.hgbrasil.dto.IndicadoresMercadoExternoDTO;
 import com.investai.api.module.dashboard.dto.IndicadoresMercadoResponseDTO;
 import com.investai.api.module.dashboard.entity.IndicadoresMercado;
 import com.investai.api.module.dashboard.repository.IndicadoresMercadoRepository;
+import com.investai.api.shared.event.IndicadoresMercadoAlteradosEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ public class IndicadoresMercadoSincronizacaoService {
     private final IndicadoresMercadoRepository indicadoresMercadoRepository;
     private final HgBrasilClient hgBrasilClient;
     private final BcbClient bcbClient;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public void sincronizarMercado() {
@@ -67,6 +70,7 @@ public class IndicadoresMercadoSincronizacaoService {
     @Transactional
     public IndicadoresMercadoResponseDTO atualizarSelicIpcaManualmente(BigDecimal selicAtual, BigDecimal ipcaAcumulado12m) {
         IndicadoresMercado indicadores = atualizarSelicIpca(selicAtual, ipcaAcumulado12m);
+        applicationEventPublisher.publishEvent(new IndicadoresMercadoAlteradosEvent(this));
         return toResponseDTO(indicadores);
     }
 
