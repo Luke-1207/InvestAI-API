@@ -15,6 +15,7 @@ import com.investai.api.module.rendafixa.entity.TituloPrivado;
 import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -175,5 +176,17 @@ class DashboardAdminServiceTest {
         assertThat(primeira.getRabbitmqConectado()).isFalse();
         assertThat(primeira.getVerificadoEm()).isNotNull();
         verify(iaHealthClient, times(2)).verificarStatus();
+    }
+
+    @Test
+    @DisplayName("aoAlterarCatalogo - deve invalidar as métricas, para os contadores refletirem o cadastro novo")
+    void aoAlterarCatalogo_deveInvalidarMetricas() {
+        configurarCenarioPadrao();
+
+        dashboardAdminService.obterMetricasAdmin();
+        dashboardAdminService.aoAlterarCatalogo(new CatalogoAtivosAlteradoEvent(this));
+        dashboardAdminService.obterMetricasAdmin();
+
+        verify(usuarioRepository, times(2)).countByDeletadoEmIsNull();
     }
 }

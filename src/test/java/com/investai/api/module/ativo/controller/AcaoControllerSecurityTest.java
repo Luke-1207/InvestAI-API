@@ -338,4 +338,20 @@ class AcaoControllerSecurityTest {
                 .atualizadoEm(LocalDateTime.now())
                 .build();
     }
+
+    @Test
+    @DisplayName("GET /acoes/gestao - deve retornar 403 pra usuário comum")
+    void listarParaGestao_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(get("/v1/acoes/gestao").header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /acoes/gestao - deve permitir gestor")
+    void listarParaGestao_devePermitirGestor() throws Exception {
+        when(acaoService.listarParaGestao()).thenReturn(List.of());
+
+        mockMvc.perform(get("/v1/acoes/gestao").header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isOk());
+    }
 }

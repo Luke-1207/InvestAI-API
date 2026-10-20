@@ -18,8 +18,11 @@ import com.investai.api.module.rendafixa.entity.TituloPrivado;
 import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -115,5 +118,10 @@ public class DashboardAdminService {
                 .diasParaVencimento(dias)
                 .urgencia(NivelUrgencia.porDiasRestantes(dias))
                 .build();
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void aoAlterarCatalogo(CatalogoAtivosAlteradoEvent event) {
+        cache.invalidateAll();
     }
 }

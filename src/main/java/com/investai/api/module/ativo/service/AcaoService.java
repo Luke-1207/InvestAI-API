@@ -7,10 +7,13 @@ import com.investai.api.module.ativo.dto.AtualizarAcaoRequestDTO;
 import com.investai.api.module.ativo.dto.CadastroAcaoRequestDTO;
 import com.investai.api.module.ativo.entity.Acao;
 import com.investai.api.module.ativo.repository.AcaoRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,6 +21,7 @@ import java.util.UUID;
 public class AcaoService {
 
     private final AcaoRepository acaoRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public AcaoResponseDTO cadastrar(CadastroAcaoRequestDTO dto) {
@@ -36,6 +40,7 @@ public class AcaoService {
                 .build();
 
         acaoRepository.save(acao);
+        avisarAlteracaoNoCatalogo();
 
         return toResponseDTO(acao);
     }
@@ -50,6 +55,7 @@ public class AcaoService {
         acao.setAtivo(dto.getAtivo());
 
         acaoRepository.save(acao);
+        avisarAlteracaoNoCatalogo();
 
         return toResponseDTO(acao);
     }
@@ -59,11 +65,21 @@ public class AcaoService {
         Acao acao = buscarOuLancar(id);
         acao.setAtivo(false);
         acaoRepository.save(acao);
+        avisarAlteracaoNoCatalogo();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AcaoResponseDTO> listarParaGestao() {
+        return acaoRepository.findAllByOrderByCodigoAsc().stream().map(this::toResponseDTO).toList();
     }
 
     @Transactional(readOnly = true)
     public AcaoResponseDTO buscarPorId(UUID id) {
         return toResponseDTO(buscarOuLancar(id));
+    }
+
+    private void avisarAlteracaoNoCatalogo() {
+        applicationEventPublisher.publishEvent(new CatalogoAtivosAlteradoEvent(this));
     }
 
     private Acao buscarOuLancar(UUID id) {

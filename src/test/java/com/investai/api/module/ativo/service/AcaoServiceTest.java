@@ -8,6 +8,7 @@ import com.investai.api.module.ativo.dto.CadastroAcaoRequestDTO;
 import com.investai.api.module.ativo.entity.Acao;
 import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.repository.AcaoRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,8 +16,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +33,9 @@ class AcaoServiceTest {
 
     @Mock
     private AcaoRepository acaoRepository;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private AcaoService acaoService;
@@ -202,5 +208,57 @@ class AcaoServiceTest {
                 .criadoEm(LocalDateTime.now())
                 .atualizadoEm(LocalDateTime.now())
                 .build();
+    }
+
+    @Test
+    @DisplayName("cadastrar, atualizar e desativar - devem avisar que o catálogo mudou")
+    void alteracoes_devemPublicarEventoDeCatalogo() {
+        UUID id = UUID.randomUUID();
+        Acao existente = Acao.builder().id(id).codigo("TAEE3").nome("Taesa").tipo(TipoAtivo.ACAO).ativo(true).build();
+        when(acaoRepository.findById(id)).thenReturn(Optional.of(existente));
+
+        CadastroAcaoRequestDTO cadastro = new CadastroAcaoRequestDTO();
+        cadastro.setCodigo("vale3");
+        cadastro.setNome("Vale ON");
+        cadastro.setTipo(TipoAtivo.ACAO);
+        acaoService.cadastrar(cadastro);
+
+        AtualizarAcaoRequestDTO atualizacao = new AtualizarAcaoRequestDTO();
+        atualizacao.setNome("Taesa Unit");
+        atualizacao.setTipo(TipoAtivo.ACAO);
+        atualizacao.setAtivo(true);
+        acaoService.atualizar(id, atualizacao);
+
+        acaoService.desativar(id);
+
+        verify(applicationEventPublisher, times(3)).publishEvent(any(CatalogoAtivosAlteradoEvent.class));
+    }
+
+    @Test
+    @DisplayName("cadastrar - código repetido não deve avisar mudança no catálogo")
+    void cadastrar_codigoRepetido_naoDevePublicarEvento() {
+        CadastroAcaoRequestDTO cadastro = new CadastroAcaoRequestDTO();
+        cadastro.setCodigo("TAEE3");
+        cadastro.setNome("Taesa");
+        cadastro.setTipo(TipoAtivo.ACAO);
+        when(acaoRepository.existsByCodigo("TAEE3")).thenReturn(true);
+
+        assertThatThrownBy(() -> acaoService.cadastrar(cadastro)).isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(applicationEventPublisher);
+    }
+
+    @Test
+    @DisplayName("listarParaGestao - deve trazer ativos e inativos, na ordem do código")
+    void listarParaGestao_deveTrazerAtivosEInativos() {
+        when(acaoRepository.findAllByOrderByCodigoAsc()).thenReturn(List.of(
+                Acao.builder().id(UUID.randomUUID()).codigo("BOVA11").nome("iShares Ibovespa").tipo(TipoAtivo.ETF).ativo(true).build(),
+                Acao.builder().id(UUID.randomUUID()).codigo("OIBR3").nome("Oi ON").tipo(TipoAtivo.ACAO).ativo(false).build()
+        ));
+
+        List<AcaoResponseDTO> resultado = acaoService.listarParaGestao();
+
+        assertThat(resultado).extracting(AcaoResponseDTO::getCodigo).containsExactly("BOVA11", "OIBR3");
+        assertThat(resultado.get(1).isAtivo()).isFalse();
     }
 }

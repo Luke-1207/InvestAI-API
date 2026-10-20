@@ -12,10 +12,13 @@ import com.investai.api.module.rendafixa.dto.CategoriaRendaFixa;
 import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import com.investai.api.shared.event.PerfilAlteradoEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -137,5 +140,10 @@ public class RendaFixaUnificadaService {
         ativo.put("isentoIR", item.isIsentoIr());
         ativo.put("garantidoFGC", item.isGarantidoFgc());
         return ativo;
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void aoAlterarCatalogo(CatalogoAtivosAlteradoEvent event) {
+        cacheInteligente.invalidateAll();
     }
 }

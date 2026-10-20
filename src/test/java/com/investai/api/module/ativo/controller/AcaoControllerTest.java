@@ -603,4 +603,19 @@ class AcaoControllerTest {
                 .atualizadoEm(LocalDateTime.now())
                 .build();
     }
+
+    @Test
+    @DisplayName("GET /acoes/gestao - deve devolver ativos e inativos sem consultar cotação")
+    void listarParaGestao_deveRetornar200() throws Exception {
+        when(acaoService.listarParaGestao()).thenReturn(List.of(
+                AcaoResponseDTO.builder().id(UUID.randomUUID()).codigo("OIBR3").nome("Oi ON").tipo(TipoAtivo.ACAO).ativo(false).build()
+        ));
+
+        mockMvc.perform(get("/v1/acoes/gestao"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].codigo").value("OIBR3"))
+                .andExpect(jsonPath("$[0].ativo").value(false));
+
+        org.mockito.Mockito.verifyNoInteractions(cotacaoService);
+    }
 }

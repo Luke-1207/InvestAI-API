@@ -9,6 +9,7 @@ import com.investai.api.module.rendafixa.entity.TipoLiquidez;
 import com.investai.api.module.rendafixa.entity.TipoTituloPrivado;
 import com.investai.api.module.rendafixa.entity.TituloPrivado;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,9 +17,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +35,9 @@ class TituloPrivadoServiceTest {
 
     @Mock
     private TituloPrivadoRepository tituloPrivadoRepository;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private TituloPrivadoService tituloPrivadoService;
@@ -156,29 +162,66 @@ class TituloPrivadoServiceTest {
     }
 
     @Test
-    @DisplayName("desativar - deve marcar ativo como false (soft delete)")
-    void desativar_deveMarcarAtivoComoFalse() {
+    @DisplayName("remover - deve apagar o título de vez e avisar que o catálogo mudou")
+    void remover_deveApagarTitulo() {
         UUID id = UUID.randomUUID();
         TituloPrivado existente = criarTituloExistente(id);
 
         when(tituloPrivadoRepository.findById(id)).thenReturn(Optional.of(existente));
 
-        tituloPrivadoService.desativar(id);
+        tituloPrivadoService.remover(id);
 
-        ArgumentCaptor<TituloPrivado> captor = ArgumentCaptor.forClass(TituloPrivado.class);
-        verify(tituloPrivadoRepository).save(captor.capture());
-        assertThat(captor.getValue().isAtivo()).isFalse();
+        verify(tituloPrivadoRepository).delete(existente);
+        verify(tituloPrivadoRepository, never()).save(any());
+        verify(applicationEventPublisher).publishEvent(any(CatalogoAtivosAlteradoEvent.class));
     }
 
     @Test
-    @DisplayName("desativar - deve lançar exceção quando título não existe")
-    void desativar_deveLancarExcecaoQuandoNaoEncontrado() {
+    @DisplayName("remover - deve lançar exceção quando título não existe")
+    void remover_deveLancarExcecaoQuandoNaoEncontrado() {
         UUID id = UUID.randomUUID();
         when(tituloPrivadoRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> tituloPrivadoService.desativar(id))
+        assertThatThrownBy(() -> tituloPrivadoService.remover(id))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(tituloPrivadoRepository, never()).save(any());
+        verify(tituloPrivadoRepository, never()).delete(any(TituloPrivado.class));
+        verifyNoInteractions(applicationEventPublisher);
+    }
+
+    @Test
+    @DisplayName("cadastrar, atualizar e alterarStatus - devem avisar que o catálogo mudou")
+    void alteracoes_devemPublicarEventoDeCatalogo() {
+        UUID id = UUID.randomUUID();
+        when(tituloPrivadoRepository.findById(id)).thenReturn(Optional.of(criarTituloExistente(id)));
+
+        tituloPrivadoService.cadastrar(criarCadastroDTO());
+        AtualizarTituloPrivadoRequestDTO atualizacao = new AtualizarTituloPrivadoRequestDTO();
+        atualizacao.setTipo(TipoTituloPrivado.LCI);
+        atualizacao.setEmissor("Banco Novo");
+        atualizacao.setIndexador(Indexador.CDI);
+        atualizacao.setTaxaPercentual(BigDecimal.valueOf(95));
+        atualizacao.setVencimento(LocalDate.now().plusYears(1));
+        atualizacao.setInvestimentoMinimo(BigDecimal.valueOf(1000));
+        atualizacao.setLiquidez(TipoLiquidez.NO_VENCIMENTO);
+        atualizacao.setGarantidoFgc(true);
+        atualizacao.setIsentoIr(true);
+        tituloPrivadoService.atualizar(id, atualizacao);
+        tituloPrivadoService.alterarStatus(id, false);
+
+        verify(applicationEventPublisher, times(3)).publishEvent(any(CatalogoAtivosAlteradoEvent.class));
+    }
+
+    @Test
+    @DisplayName("listarParaGestao - deve trazer ativos e inativos com o status de cada um")
+    void listarParaGestao_deveTrazerAtivosEInativos() {
+        TituloPrivado ativo = criarTituloExistente(UUID.randomUUID());
+        TituloPrivado inativo = criarTituloExistente(UUID.randomUUID());
+        inativo.setAtivo(false);
+        when(tituloPrivadoRepository.findAllByOrderByTipoAscEmissorAscVencimentoAsc()).thenReturn(List.of(ativo, inativo));
+
+        List<TituloPrivadoResponseDTO> resultado = tituloPrivadoService.listarParaGestao();
+
+        assertThat(resultado).extracting(TituloPrivadoResponseDTO::isAtivo).containsExactly(true, false);
     }
 }

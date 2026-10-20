@@ -6,10 +6,13 @@ import com.investai.api.module.rendafixa.dto.CadastroTituloPrivadoRequestDTO;
 import com.investai.api.module.rendafixa.dto.TituloPrivadoResponseDTO;
 import com.investai.api.module.rendafixa.entity.TituloPrivado;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -17,6 +20,7 @@ import java.util.UUID;
 public class TituloPrivadoService {
 
     private final TituloPrivadoRepository tituloPrivadoRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public TituloPrivadoResponseDTO cadastrar(CadastroTituloPrivadoRequestDTO dto) {
@@ -34,6 +38,7 @@ public class TituloPrivadoService {
                 .build();
 
         tituloPrivadoRepository.save(titulo);
+        avisarAlteracaoNoCatalogo();
         return toResponseDTO(titulo);
     }
 
@@ -52,6 +57,7 @@ public class TituloPrivadoService {
         titulo.setIsentoIr(dto.getIsentoIr());
 
         tituloPrivadoRepository.save(titulo);
+        avisarAlteracaoNoCatalogo();
         return toResponseDTO(titulo);
     }
 
@@ -60,14 +66,26 @@ public class TituloPrivadoService {
         TituloPrivado titulo = buscarOuLancar(id);
         titulo.setAtivo(ativo);
         tituloPrivadoRepository.save(titulo);
+        avisarAlteracaoNoCatalogo();
         return toResponseDTO(titulo);
     }
 
     @Transactional
-    public void desativar(UUID id) {
+    public void remover(UUID id) {
         TituloPrivado titulo = buscarOuLancar(id);
-        titulo.setAtivo(false);
-        tituloPrivadoRepository.save(titulo);
+        tituloPrivadoRepository.delete(titulo);
+        avisarAlteracaoNoCatalogo();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TituloPrivadoResponseDTO> listarParaGestao() {
+        return tituloPrivadoRepository.findAllByOrderByTipoAscEmissorAscVencimentoAsc().stream()
+                .map(this::toResponseDTO)
+                .toList();
+    }
+
+    private void avisarAlteracaoNoCatalogo() {
+        applicationEventPublisher.publishEvent(new CatalogoAtivosAlteradoEvent(this));
     }
 
     private TituloPrivado buscarOuLancar(UUID id) {

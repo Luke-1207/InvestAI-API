@@ -18,4 +18,5 @@ public interface AcaoRepository extends JpaRepository<Acao, UUID> {
     List<Acao> findByAtivoTrueAndTipoInAndSetorIgnoreCase(List<TipoAtivo> tipos, String setor);
     Optional<Acao> findByCodigoIgnoreCaseAndAtivoTrue(String codigo);
     long countByAtivoTrueAndTipo(TipoAtivo tipo);
+    List<Acao> findAllByOrderByCodigoAsc();
 }

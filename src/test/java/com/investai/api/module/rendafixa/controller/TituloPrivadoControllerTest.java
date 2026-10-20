@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -184,20 +185,22 @@ class TituloPrivadoControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /renda-fixa/titulos/{id} - deve retornar 204")
-    void desativar_deveRetornar204() throws Exception {
+    @DisplayName("DELETE /renda-fixa/titulos/{id} - deve remover o título e retornar 204")
+    void remover_deveRetornar204() throws Exception {
         UUID id = UUID.randomUUID();
 
         mockMvc.perform(delete("/v1/renda-fixa/titulos/{id}", id))
                 .andExpect(status().isNoContent());
+
+        org.mockito.Mockito.verify(tituloPrivadoService).remover(id);
     }
 
     @Test
     @DisplayName("DELETE /renda-fixa/titulos/{id} - deve retornar 404 quando não encontrado")
-    void desativar_deveRetornar404QuandoNaoEncontrado() throws Exception {
+    void remover_deveRetornar404QuandoNaoEncontrado() throws Exception {
         UUID id = UUID.randomUUID();
         org.mockito.Mockito.doThrow(new ResourceNotFoundException("Título privado não encontrado"))
-                .when(tituloPrivadoService).desativar(id);
+                .when(tituloPrivadoService).remover(id);
 
         mockMvc.perform(delete("/v1/renda-fixa/titulos/{id}", id))
                 .andExpect(status().isNotFound());
@@ -248,5 +251,19 @@ class TituloPrivadoControllerTest {
         mockMvc.perform(get("/v1/renda-fixa/titulos/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rentabilidadeEstimada.taxaLiquidaAnual").value(95.20));
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos/gestao - deve devolver ativos e inativos para o gestor")
+    void listarParaGestao_deveRetornar200() throws Exception {
+        when(tituloPrivadoService.listarParaGestao()).thenReturn(List.of(
+                TituloPrivadoResponseDTO.builder().id(UUID.randomUUID()).tipo(TipoTituloPrivado.CDB).emissor("Banco Inter").ativo(true).build(),
+                TituloPrivadoResponseDTO.builder().id(UUID.randomUUID()).tipo(TipoTituloPrivado.LCA).emissor("Banco do Brasil").ativo(false).build()
+        ));
+
+        mockMvc.perform(get("/v1/renda-fixa/titulos/gestao"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].emissor").value("Banco Inter"))
+                .andExpect(jsonPath("$[1].ativo").value(false));
     }
 }
