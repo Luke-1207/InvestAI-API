@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -130,7 +131,7 @@ class TituloPrivadoControllerSecurityTest {
 
     @Test
     @DisplayName("DELETE /renda-fixa/titulos/{id} - deve retornar 403 pra usuário comum")
-    void desativar_deveRetornar403ParaUsuarioComum() throws Exception {
+    void remover_deveRetornar403ParaUsuarioComum() throws Exception {
         mockMvc.perform(delete("/v1/renda-fixa/titulos/{id}", UUID.randomUUID())
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isForbidden());
@@ -161,5 +162,28 @@ class TituloPrivadoControllerSecurityTest {
         mockMvc.perform(get("/v1/renda-fixa/titulos")
                         .header("Authorization", "Bearer " + tokenUsuario))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos/gestao - deve retornar 403 pra usuário comum")
+    void listarParaGestao_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(get("/v1/renda-fixa/titulos/gestao").header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /renda-fixa/titulos/gestao - deve permitir gestor")
+    void listarParaGestao_devePermitirGestor() throws Exception {
+        when(tituloPrivadoService.listarParaGestao()).thenReturn(List.of());
+
+        mockMvc.perform(get("/v1/renda-fixa/titulos/gestao").header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /renda-fixa/titulos/{id} - deve permitir gestor")
+    void remover_devePermitirGestor() throws Exception {
+        mockMvc.perform(delete("/v1/renda-fixa/titulos/{id}", UUID.randomUUID()).header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isNoContent());
     }
 }

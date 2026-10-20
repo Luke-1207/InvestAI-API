@@ -52,6 +52,11 @@ public class AcaoController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/gestao")
+    public ResponseEntity<List<AcaoResponseDTO>> listarParaGestao() {
+        return ResponseEntity.ok(acaoService.listarParaGestao());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AcaoResponseDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(acaoService.buscarPorId(id));

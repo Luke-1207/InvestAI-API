@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface TituloPrivadoRepository extends JpaRepository<TituloPrivado, UUID> {
     List<TituloPrivado> findByAtivoTrue();
+    List<TituloPrivado> findAllByOrderByTipoAscEmissorAscVencimentoAsc();
     long countByAtivoTrueAndTipo(TipoTituloPrivado tipo);
     List<TituloPrivado> findByAtivoTrueAndVencimentoBetweenOrderByVencimentoAsc(LocalDate inicio, LocalDate fim);
 }

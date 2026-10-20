@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,6 +26,11 @@ public class TituloPrivadoController {
     @GetMapping
     public ResponseEntity<Page<TituloPrivadoListagemResponseDTO>> listar(TituloPrivadoListagemFiltroDTO filtro) {
         return ResponseEntity.ok(tituloPrivadoListagemService.listar(filtro));
+    }
+
+    @GetMapping("/gestao")
+    public ResponseEntity<List<TituloPrivadoResponseDTO>> listarParaGestao() {
+        return ResponseEntity.ok(tituloPrivadoService.listarParaGestao());
     }
 
     @GetMapping("/{id}")
@@ -55,8 +61,8 @@ public class TituloPrivadoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> desativar(@PathVariable UUID id) {
-        tituloPrivadoService.desativar(id);
+    public ResponseEntity<Void> remover(@PathVariable UUID id) {
+        tituloPrivadoService.remover(id);
         return ResponseEntity.noContent().build();
     }
 }
