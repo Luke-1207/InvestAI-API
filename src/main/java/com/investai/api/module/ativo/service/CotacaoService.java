@@ -37,11 +37,13 @@ public class CotacaoService {
         return buscarEAtualizarCache(ticker);
     }
 
-    public void atualizarCacheSilenciosamente(String codigo) {
+    public boolean atualizarCacheSilenciosamente(String codigo) {
         try {
             buscarEAtualizarCache(codigo.toUpperCase().trim());
+            return true;
         } catch (Exception e) {
             log.warn("Falha ao atualizar cotação em cache para {}: {}", codigo, e.getMessage());
+            return false;
         }
     }
 

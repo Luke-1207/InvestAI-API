@@ -3,6 +3,8 @@ package com.investai.api.module.rendafixa.service;
 import com.investai.api.infra.exception.TesouroDiretoIndisponivelException;
 import com.investai.api.infra.tesourodireto.TesouroDiretoClient;
 import com.investai.api.infra.tesourodireto.dto.TituloTesouroExternoDTO;
+import com.investai.api.module.integracao.entity.Integracao;
+import com.investai.api.module.integracao.service.MonitorIntegracoesService;
 import com.investai.api.module.rendafixa.entity.TipoTesouro;
 import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
@@ -22,6 +24,7 @@ public class TesouroDiretoSincronizacaoService {
 
     private final TesouroDiretoClient tesouroDiretoClient;
     private final TituloTesouroRepository tituloTesouroRepository;
+    private final MonitorIntegracoesService monitorIntegracoesService;
 
     @Transactional
     public void sincronizar() {
@@ -30,6 +33,7 @@ public class TesouroDiretoSincronizacaoService {
         try {
             titulosExternos = tesouroDiretoClient.buscarTitulosDisponiveis();
         } catch (TesouroDiretoIndisponivelException e) {
+            monitorIntegracoesService.registrarFalha(Integracao.TESOURO_DIRETO, e.getMessage());
             log.warn("Sincronização do Tesouro Direto pulada — fonte externa indisponível ({}). "
                     + "Mantendo os dados já persistidos.", e.getMessage());
             return;
@@ -56,6 +60,7 @@ public class TesouroDiretoSincronizacaoService {
         }
 
         tituloTesouroRepository.saveAll(paraSalvar);
+        monitorIntegracoesService.registrarSucesso(Integracao.TESOURO_DIRETO);
         log.info("Sincronização do Tesouro Direto concluída: {} títulos atualizados", paraSalvar.size());
     }
 }
