@@ -8,6 +8,8 @@ import com.investai.api.infra.hgbrasil.dto.IndicadoresMercadoExternoDTO;
 import com.investai.api.module.dashboard.dto.IndicadoresMercadoResponseDTO;
 import com.investai.api.module.dashboard.entity.IndicadoresMercado;
 import com.investai.api.module.dashboard.repository.IndicadoresMercadoRepository;
+import com.investai.api.module.integracao.entity.Integracao;
+import com.investai.api.module.integracao.service.MonitorIntegracoesService;
 import com.investai.api.shared.event.IndicadoresMercadoAlteradosEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,9 @@ class IndicadoresMercadoSincronizacaoServiceTest {
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Mock
+    private MonitorIntegracoesService monitorIntegracoesService;
+
     @InjectMocks
     private IndicadoresMercadoSincronizacaoService indicadoresMercadoSincronizacaoService;
 
@@ -67,6 +72,7 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         assertThat(salvo.getDolarValor()).isEqualByComparingTo("5.14");
         assertThat(salvo.getEuroValor()).isEqualByComparingTo("6.02");
         assertThat(salvo.getSincronizadoEm()).isNotNull();
+        verify(monitorIntegracoesService).registrarSucesso(Integracao.HG_BRASIL);
     }
 
     @Test
@@ -102,6 +108,8 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         indicadoresMercadoSincronizacaoService.sincronizarMercado();
 
         verify(indicadoresMercadoRepository, never()).save(any());
+        verify(monitorIntegracoesService).registrarFalha(Integracao.HG_BRASIL, "HG Brasil fora do ar");
+        verify(monitorIntegracoesService, never()).registrarSucesso(any());
     }
 
     @Test
@@ -121,6 +129,7 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         assertThat(salvo.getSelicAtual()).isEqualByComparingTo("14.25");
         assertThat(salvo.getIpcaAcumulado12m()).isEqualByComparingTo("4.83");
         assertThat(salvo.getSelicIpcaSincronizadoEm()).isNotNull();
+        verify(monitorIntegracoesService).registrarSucesso(Integracao.BANCO_CENTRAL);
     }
 
     @Test
@@ -131,6 +140,7 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         indicadoresMercadoSincronizacaoService.sincronizarSelicIpca();
 
         verify(indicadoresMercadoRepository, never()).save(any());
+        verify(monitorIntegracoesService).registrarFalha(Integracao.BANCO_CENTRAL, "BCB fora do ar");
     }
 
     @Test
@@ -152,6 +162,7 @@ class IndicadoresMercadoSincronizacaoServiceTest {
         assertThat(resultado.getIbovespaPontos()).isEqualByComparingTo("134820.5");
         assertThat(resultado.getSelicIpcaSincronizadoEm()).isNotNull();
         verify(applicationEventPublisher).publishEvent(any(IndicadoresMercadoAlteradosEvent.class));
+        verifyNoInteractions(monitorIntegracoesService);
     }
 
     @Test
