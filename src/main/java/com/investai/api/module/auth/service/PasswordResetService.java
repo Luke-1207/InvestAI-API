@@ -7,6 +7,7 @@ import com.investai.api.module.auth.entity.PasswordResetToken;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.repository.PasswordResetTokenRepository;
 import com.investai.api.module.auth.repository.UsuarioRepository;
+import com.investai.api.module.auth.service.LimiteTentativasService.Operacao;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,7 @@ public class PasswordResetService {
     private final RefreshTokenService refreshTokenService;
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
+    private final LimiteTentativasService limiteTentativasService;
 
     @Value("${security.reset-token-expiration-minutes:30}")
     private long expirationMinutes;
@@ -33,8 +35,10 @@ public class PasswordResetService {
     private String frontendUrl;
 
     @Transactional
-    public void solicitarRecuperacao(EsqueciSenhaRequestDTO dto) {
+    public void solicitarRecuperacao(EsqueciSenhaRequestDTO dto, String ip) {
         String email = dto.getEmail().toLowerCase().trim();
+        limiteTentativasService.verificar(Operacao.RECUPERACAO_SENHA, email, ip);
+        limiteTentativasService.registrarTentativa(Operacao.RECUPERACAO_SENHA, email, ip);
 
         usuarioRepository.findByEmail(email)
                 .filter(Usuario::isEnabled)

@@ -3,6 +3,7 @@ package com.investai.api.module.auth.controller;
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.service.AuthService;
 import com.investai.api.module.auth.service.PasswordResetService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,9 +31,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(
-            @Valid @RequestBody LoginRequestDTO dto
+            @Valid @RequestBody LoginRequestDTO dto,
+            HttpServletRequest request
     ) {
-        LoginResponseDTO response = authService.login(dto);
+        LoginResponseDTO response = authService.login(dto, request.getRemoteAddr());
         return ResponseEntity.ok(response);
     }
 
@@ -54,9 +56,10 @@ public class AuthController {
 
     @PostMapping("/esqueci-senha")
     public ResponseEntity<MensagemResponseDTO> esqueciSenha(
-            @Valid @RequestBody EsqueciSenhaRequestDTO dto
+            @Valid @RequestBody EsqueciSenhaRequestDTO dto,
+            HttpServletRequest request
     ) {
-        passwordResetService.solicitarRecuperacao(dto);
+        passwordResetService.solicitarRecuperacao(dto, request.getRemoteAddr());
         return ResponseEntity.ok(
                 new MensagemResponseDTO("Se o e-mail estiver cadastrado, você receberá instruções em instantes.")
         );

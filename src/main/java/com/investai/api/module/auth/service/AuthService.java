@@ -7,6 +7,7 @@ import com.investai.api.module.auth.entity.RefreshToken;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.repository.UsuarioRepository;
+import com.investai.api.module.auth.service.LimiteTentativasService.Operacao;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.shared.security.JwtUtil;
@@ -24,6 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
+    private final LimiteTentativasService limiteTentativasService;
 
     @Transactional
     public CadastroResponseDTO cadastrar(CadastroRequestDTO dto) {
@@ -61,18 +63,21 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResponseDTO login(LoginRequestDTO dto) {
+    public LoginResponseDTO login(LoginRequestDTO dto, String ip) {
+        String email = dto.getEmail().toLowerCase().trim();
+        limiteTentativasService.verificar(Operacao.LOGIN, email, ip);
 
-        Usuario usuario = usuarioRepository.findByEmail(dto.getEmail().toLowerCase().trim())
-                .orElseThrow(() -> new BusinessException("Credenciais inválidas"));
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .filter(u -> passwordEncoder.matches(dto.getSenha(), u.getSenha()))
+                .filter(Usuario::isEnabled)
+                .orElse(null);
 
-        if (!passwordEncoder.matches(dto.getSenha(), usuario.getSenha())) {
+        if (usuario == null) {
+            limiteTentativasService.registrarTentativa(Operacao.LOGIN, email, ip);
             throw new BusinessException("Credenciais inválidas");
         }
 
-        if (!usuario.isEnabled()) {
-            throw new BusinessException("Credenciais inválidas");
-        }
+        limiteTentativasService.limpar(Operacao.LOGIN, email);
 
         String accessToken = jwtUtil.gerarToken(usuario);
         RefreshToken refreshToken = refreshTokenService.criar(usuario);
