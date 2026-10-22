@@ -1,6 +1,7 @@
 package com.investai.api.module.auth.service;
 
 import com.investai.api.infra.exception.BusinessException;
+import com.investai.api.infra.exception.MuitasTentativasException;
 import com.investai.api.infra.mail.MailService;
 import com.investai.api.module.auth.dto.EsqueciSenhaRequestDTO;
 import com.investai.api.module.auth.dto.RedefinirSenhaRequestDTO;
@@ -9,6 +10,7 @@ import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.repository.PasswordResetTokenRepository;
 import com.investai.api.module.auth.repository.UsuarioRepository;
+import com.investai.api.module.auth.service.LimiteTentativasService.Operacao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,11 @@ class PasswordResetServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private LimiteTentativasService limiteTentativasService;
+
+    private static final String IP = "200.10.20.30";
+
     @InjectMocks
     private PasswordResetService passwordResetService;
 
@@ -67,7 +74,7 @@ class PasswordResetServiceTest {
 
         when(usuarioRepository.findByEmail("lucas@email.com")).thenReturn(Optional.of(usuario));
 
-        passwordResetService.solicitarRecuperacao(dto);
+        passwordResetService.solicitarRecuperacao(dto, IP);
 
         verify(passwordResetTokenRepository).invalidarTokensAnteriores(usuario.getId());
 
@@ -97,7 +104,7 @@ class PasswordResetServiceTest {
 
         when(usuarioRepository.findByEmail("naoexiste@email.com")).thenReturn(Optional.empty());
 
-        passwordResetService.solicitarRecuperacao(dto);
+        passwordResetService.solicitarRecuperacao(dto, IP);
 
         verify(passwordResetTokenRepository, never()).invalidarTokensAnteriores(any());
         verify(passwordResetTokenRepository, never()).save(any());
@@ -115,7 +122,7 @@ class PasswordResetServiceTest {
 
         when(usuarioRepository.findByEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
 
-        passwordResetService.solicitarRecuperacao(dto);
+        passwordResetService.solicitarRecuperacao(dto, IP);
 
         verify(passwordResetTokenRepository, never()).save(any());
         verify(mailService, never()).enviarEmailRecuperacaoSenha(anyString(), anyString(), anyString());
@@ -132,7 +139,7 @@ class PasswordResetServiceTest {
 
         when(usuarioRepository.findByEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
 
-        passwordResetService.solicitarRecuperacao(dto);
+        passwordResetService.solicitarRecuperacao(dto, IP);
 
         verify(passwordResetTokenRepository, never()).save(any());
         verify(mailService, never()).enviarEmailRecuperacaoSenha(anyString(), anyString(), anyString());
@@ -260,5 +267,33 @@ class PasswordResetServiceTest {
                 .usado(false)
                 .expiraEm(LocalDateTime.now().plusMinutes(30))
                 .build();
+    }
+
+    @Test
+    @DisplayName("solicitarRecuperacao - deve contar o pedido no limite, exista ou não o e-mail")
+    void solicitarRecuperacao_deveContarOPedido() {
+        EsqueciSenhaRequestDTO dto = new EsqueciSenhaRequestDTO();
+        dto.setEmail(" NaoExiste@Email.com ");
+        when(usuarioRepository.findByEmail("naoexiste@email.com")).thenReturn(Optional.empty());
+
+        passwordResetService.solicitarRecuperacao(dto, IP);
+
+        verify(limiteTentativasService).verificar(Operacao.RECUPERACAO_SENHA, "naoexiste@email.com", IP);
+        verify(limiteTentativasService).registrarTentativa(Operacao.RECUPERACAO_SENHA, "naoexiste@email.com", IP);
+    }
+
+    @Test
+    @DisplayName("solicitarRecuperacao - bloqueado não deve gerar token nem enviar e-mail")
+    void solicitarRecuperacao_bloqueado_naoDeveEnviarEmail() {
+        EsqueciSenhaRequestDTO dto = new EsqueciSenhaRequestDTO();
+        dto.setEmail("lucas@email.com");
+        doThrow(new MuitasTentativasException(600)).when(limiteTentativasService)
+                .verificar(Operacao.RECUPERACAO_SENHA, "lucas@email.com", IP);
+
+        assertThatThrownBy(() -> passwordResetService.solicitarRecuperacao(dto, IP))
+                .isInstanceOf(MuitasTentativasException.class);
+
+        verifyNoInteractions(usuarioRepository, passwordResetTokenRepository, mailService);
+        verify(limiteTentativasService, never()).registrarTentativa(any(), any(), any());
     }
 }
