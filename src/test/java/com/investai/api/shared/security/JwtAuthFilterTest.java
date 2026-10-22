@@ -168,4 +168,23 @@ class JwtAuthFilterTest {
 
         verify(filterChain).doFilter(request, response);
     }
+
+    @Test
+    void naoDeveAutenticarContaDesativadaMesmoComTokenValido()
+            throws ServletException, IOException {
+
+        String token = "token-de-conta-desativada";
+        String email = "desativado@email.com";
+        request.addHeader("Authorization", "Bearer " + token);
+
+        UserDetails desativado = new User(email, "123", false, true, true, true, Collections.emptyList());
+        when(jwtUtil.tokenValido(token)).thenReturn(true);
+        when(jwtUtil.extrairEmail(token)).thenReturn(email);
+        when(userDetailsService.loadUserByUsername(email)).thenReturn(desativado);
+
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
 }

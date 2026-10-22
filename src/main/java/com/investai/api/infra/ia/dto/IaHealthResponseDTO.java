@@ -8,4 +8,5 @@ import lombok.Data;
 public class IaHealthResponseDTO {
     private String status;
     private Boolean rabbitmq;
+    private IaLlmHealthDTO llm;
 }

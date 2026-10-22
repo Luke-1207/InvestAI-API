@@ -8,8 +8,12 @@ import com.investai.api.infra.hgbrasil.dto.IndicadoresMercadoExternoDTO;
 import com.investai.api.module.dashboard.dto.IndicadoresMercadoResponseDTO;
 import com.investai.api.module.dashboard.entity.IndicadoresMercado;
 import com.investai.api.module.dashboard.repository.IndicadoresMercadoRepository;
+import com.investai.api.module.integracao.entity.Integracao;
+import com.investai.api.module.integracao.service.MonitorIntegracoesService;
+import com.investai.api.shared.event.IndicadoresMercadoAlteradosEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +28,8 @@ public class IndicadoresMercadoSincronizacaoService {
     private final IndicadoresMercadoRepository indicadoresMercadoRepository;
     private final HgBrasilClient hgBrasilClient;
     private final BcbClient bcbClient;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final MonitorIntegracoesService monitorIntegracoesService;
 
     @Transactional
     public void sincronizarMercado() {
@@ -31,6 +37,7 @@ public class IndicadoresMercadoSincronizacaoService {
         try {
             externo = hgBrasilClient.obterIndicadoresMercado();
         } catch (HgBrasilIndisponivelException e) {
+            monitorIntegracoesService.registrarFalha(Integracao.HG_BRASIL, e.getMessage());
             log.warn("Sincronização de indicadores de mercado pulada — HG Brasil indisponível ({}). Mantendo dados já persistidos.", e.getMessage());
             return;
         }
@@ -45,6 +52,7 @@ public class IndicadoresMercadoSincronizacaoService {
         indicadores.setSincronizadoEm(LocalDateTime.now());
 
         indicadoresMercadoRepository.save(indicadores);
+        monitorIntegracoesService.registrarSucesso(Integracao.HG_BRASIL);
         log.info("Indicadores de mercado sincronizados com sucesso.");
     }
 
@@ -56,17 +64,20 @@ public class IndicadoresMercadoSincronizacaoService {
             selic = bcbClient.obterSelicAtual();
             ipca = bcbClient.obterIpcaAcumulado12Meses();
         } catch (BcbIndisponivelException e) {
+            monitorIntegracoesService.registrarFalha(Integracao.BANCO_CENTRAL, e.getMessage());
             log.warn("Sincronização de Selic/IPCA pulada — Banco Central indisponível ({}). Mantendo dados já persistidos.", e.getMessage());
             return;
         }
 
         atualizarSelicIpca(selic, ipca);
+        monitorIntegracoesService.registrarSucesso(Integracao.BANCO_CENTRAL);
         log.info("Selic e IPCA sincronizados com o Banco Central com sucesso.");
     }
 
     @Transactional
     public IndicadoresMercadoResponseDTO atualizarSelicIpcaManualmente(BigDecimal selicAtual, BigDecimal ipcaAcumulado12m) {
         IndicadoresMercado indicadores = atualizarSelicIpca(selicAtual, ipcaAcumulado12m);
+        applicationEventPublisher.publishEvent(new IndicadoresMercadoAlteradosEvent(this));
         return toResponseDTO(indicadores);
     }
 

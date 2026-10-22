@@ -79,6 +79,11 @@ mercado:
 
 security:
   reset-token-expiration-minutes: 30
+  limite-tentativas:
+    max-por-email: ${LIMITE_TENTATIVAS_POR_EMAIL:5}
+    max-por-ip: ${LIMITE_TENTATIVAS_POR_IP:20}
+    janela-minutos: 15
+    bloqueio-minutos: 15
 
 jwt:
   secret: ${JWT_SECRET}

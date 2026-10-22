@@ -3,6 +3,8 @@ package com.investai.api.module.ativo.job;
 import com.investai.api.module.ativo.entity.Acao;
 import com.investai.api.module.ativo.repository.AcaoRepository;
 import com.investai.api.module.ativo.service.CotacaoService;
+import com.investai.api.module.integracao.entity.Integracao;
+import com.investai.api.module.integracao.service.MonitorIntegracoesService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,6 +19,7 @@ public class CotacaoSyncJob {
 
     private final AcaoRepository acaoRepository;
     private final CotacaoService cotacaoService;
+    private final MonitorIntegracoesService monitorIntegracoesService;
 
     @Scheduled(fixedRateString = "${hgbrasil.cache.refresh-rate-ms:900000}")
     public void sincronizarCotacoes() {
@@ -29,10 +32,16 @@ public class CotacaoSyncJob {
 
         log.info("Iniciando sincronização de cotações para {} ativo(s).", ativosAtivos.size());
 
+        int atualizadas = 0;
         for (Acao acao : ativosAtivos) {
-            cotacaoService.atualizarCacheSilenciosamente(acao.getCodigo());
+            if (cotacaoService.atualizarCacheSilenciosamente(acao.getCodigo())) atualizadas++;
         }
 
-        log.info("Sincronização de cotações finalizada.");
+        if (atualizadas > 0) {
+            monitorIntegracoesService.registrarSucesso(Integracao.HG_BRASIL);
+        } else {
+            monitorIntegracoesService.registrarFalha(Integracao.HG_BRASIL, "Nenhuma cotação pôde ser atualizada na HG Brasil");
+        }
+        log.info("Sincronização de cotações finalizada: {} de {} atualizadas.", atualizadas, ativosAtivos.size());
     }
 }

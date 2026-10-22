@@ -3,6 +3,7 @@ package com.investai.api.module.auth.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.GlobalExceptionHandler;
+import com.investai.api.infra.exception.MuitasTentativasException;
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.service.AuthService;
@@ -22,6 +23,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -131,7 +134,7 @@ class AuthControllerTest {
                 .expiresIn(3600L)
                 .build();
 
-        when(authService.login(any(LoginRequestDTO.class)))
+        when(authService.login(any(LoginRequestDTO.class), anyString()))
                 .thenReturn(response);
 
         mockMvc.perform(post("/v1/auth/login")
@@ -170,7 +173,7 @@ class AuthControllerTest {
                 .senha("senha-errada")
                 .build();
 
-        when(authService.login(any(LoginRequestDTO.class)))
+        when(authService.login(any(LoginRequestDTO.class), anyString()))
                 .thenThrow(new BusinessException("Credenciais inválidas"));
 
         mockMvc.perform(post("/v1/auth/login")
@@ -189,7 +192,7 @@ class AuthControllerTest {
                 .senha("12345678")
                 .build();
 
-        when(authService.login(any(LoginRequestDTO.class)))
+        when(authService.login(any(LoginRequestDTO.class), anyString()))
                 .thenThrow(new BusinessException("Credenciais inválidas"));
 
         mockMvc.perform(post("/v1/auth/login")
@@ -344,7 +347,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.mensagem")
                         .value("Se o e-mail estiver cadastrado, você receberá instruções em instantes."));
 
-        verify(passwordResetService).solicitarRecuperacao(any(EsqueciSenhaRequestDTO.class));
+        verify(passwordResetService).solicitarRecuperacao(any(EsqueciSenhaRequestDTO.class), anyString());
     }
 
     @Test
@@ -458,5 +461,54 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /auth/login - bloqueado deve responder 429 com Retry-After e mensagem neutra")
+    void login_bloqueado_deveRetornar429() throws Exception {
+        LoginRequestDTO request = LoginRequestDTO.builder().email("lucas@email.com").senha("12345678").build();
+        when(authService.login(any(LoginRequestDTO.class), anyString())).thenThrow(new MuitasTentativasException(900));
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "900"))
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.erro").value("Muitas tentativas seguidas. Aguarde 15 minutos e tente de novo."));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login - deve repassar o IP de quem fez a requisição")
+    void login_deveRepassarOIp() throws Exception {
+        LoginRequestDTO request = LoginRequestDTO.builder().email("lucas@email.com").senha("12345678").build();
+        when(authService.login(any(LoginRequestDTO.class), anyString())).thenReturn(LoginResponseDTO.builder().build());
+
+        mockMvc.perform(post("/v1/auth/login")
+                        .with(requisicao -> {
+                            requisicao.setRemoteAddr("200.10.20.30");
+                            return requisicao;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(authService).login(any(LoginRequestDTO.class), eq("200.10.20.30"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/esqueci-senha - bloqueado deve responder 429")
+    void esqueciSenha_bloqueado_deveRetornar429() throws Exception {
+        EsqueciSenhaRequestDTO request = new EsqueciSenhaRequestDTO();
+        request.setEmail("lucas@email.com");
+        doThrow(new MuitasTentativasException(45)).when(passwordResetService)
+                .solicitarRecuperacao(any(EsqueciSenhaRequestDTO.class), anyString());
+
+        mockMvc.perform(post("/v1/auth/esqueci-senha")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "45"))
+                .andExpect(jsonPath("$.erro").value("Muitas tentativas seguidas. Aguarde 1 minuto e tente de novo."));
     }
 }

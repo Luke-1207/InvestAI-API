@@ -8,4 +8,5 @@ import lombok.Data;
 public class IaHealthStatusDTO {
     private boolean disponivel;
     private Boolean rabbitmqConectado;
+    private IaLlmHealthDTO llm;
 }

@@ -10,7 +10,9 @@ import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
 import com.investai.api.module.rendafixa.entity.*;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
+import com.investai.api.shared.event.CatalogoAtivosAlteradoEvent;
 import com.investai.api.shared.event.PerfilAlteradoEvent;
+import com.investai.api.shared.scoring.CriterioScoreDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -140,7 +142,8 @@ class RendaFixaUnificadaServiceTest {
                 .correlationId("qualquer")
                 .ativos(List.of(
                         AtivoRankeadoDTO.builder().codigo(tesouro.getId().toString()).score(60).compatibilidade(Compatibilidade.MEDIA).justificativa("ok").build(),
-                        AtivoRankeadoDTO.builder().codigo(cdb.getId().toString()).score(92).compatibilidade(Compatibilidade.ALTA).justificativa("ótimo").build()
+                        AtivoRankeadoDTO.builder().codigo(cdb.getId().toString()).score(92).compatibilidade(Compatibilidade.ALTA).justificativa("ótimo")
+                                .criterios(List.of(new CriterioScoreDTO("garantia_fgc", "Garantido pelo FGC", 5))).build()
                 ))
                 .build();
 
@@ -153,6 +156,7 @@ class RendaFixaUnificadaServiceTest {
         assertThat(resultado.get(0).getScore()).isEqualTo(92);
         assertThat(resultado.get(0).getCompatibilidade()).isEqualTo(Compatibilidade.ALTA);
         assertThat(resultado.get(1).getScore()).isEqualTo(60);
+        assertThat(resultado.get(0).getCriterios()).extracting(CriterioScoreDTO::getChave).containsExactly("garantia_fgc");
     }
 
     @Test
@@ -295,5 +299,18 @@ class RendaFixaUnificadaServiceTest {
         when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
         when(iaMensagemPublisher.enviarRankingEAguardar(any(), any(), any()))
                 .thenReturn(RankingResponseDTO.builder().ativos(List.of()).build());
+    }
+
+    @Test
+    @DisplayName("aoAlterarCatalogo - deve invalidar o ranking de todos os usuários quando o gestor muda um título")
+    void aoAlterarCatalogo_deveInvalidarTodosOsRankings() {
+        UUID usuarioId = UUID.randomUUID();
+        configurarCenarioPadraoInteligente(usuarioId);
+
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+        rendaFixaUnificadaService.aoAlterarCatalogo(new CatalogoAtivosAlteradoEvent(this));
+        rendaFixaUnificadaService.listar("inteligente", usuarioId);
+
+        verify(iaMensagemPublisher, times(2)).enviarRankingEAguardar(any(), any(), any());
     }
 }

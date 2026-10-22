@@ -7,6 +7,7 @@ import com.investai.api.module.ativo.entity.TipoAtivo;
 import com.investai.api.module.ativo.repository.AcaoRepository;
 import com.investai.api.module.ativo.service.AcaoPontuacaoService;
 import com.investai.api.module.dashboard.dto.SugestaoAtivoItemDTO;
+import com.investai.api.module.dashboard.dto.SugestaoRendaFixaItemDTO;
 import com.investai.api.module.dashboard.dto.SugestoesRendaFixaResponseDTO;
 import com.investai.api.module.dashboard.dto.SugestoesRendaVariavelResponseDTO;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
@@ -14,12 +15,14 @@ import com.investai.api.module.perfil.entity.SetorPreferido;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.module.rendafixa.dto.CategoriaRendaFixa;
 import com.investai.api.module.rendafixa.dto.RendaFixaListagemResponseDTO;
+import com.investai.api.module.rendafixa.service.RendaFixaPontuacaoService;
 import com.investai.api.module.rendafixa.service.RendaFixaUnificadaService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -30,6 +33,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +51,9 @@ class DashboardSugestaoServiceTest {
 
     @Mock
     private PerfilInvestidorRepository perfilInvestidorRepository;
+
+    @Spy
+    private RendaFixaPontuacaoService rendaFixaPontuacaoService = new RendaFixaPontuacaoService();
 
     @InjectMocks
     private DashboardSugestaoService dashboardSugestaoService;
@@ -264,7 +271,7 @@ class DashboardSugestaoServiceTest {
     }
 
     @Test
-    @DisplayName("sugerirRendaFixa - deve classificar compatibilidade respeitando os limiares 70/40")
+    @DisplayName("sugerirRendaFixa - título muito alinhado ao perfil deve chegar à compatibilidade Alta (80 ou mais)")
     void sugerirRendaFixa_deveClassificarCompatibilidadeAlta() {
         UUID usuarioId = UUID.randomUUID();
         RendaFixaListagemResponseDTO titulo = criarTitulo(CategoriaRendaFixa.TESOURO, "SELIC",
@@ -277,5 +284,28 @@ class DashboardSugestaoServiceTest {
         SugestoesRendaFixaResponseDTO resultado = dashboardSugestaoService.sugerirRendaFixa(usuarioId);
 
         assertThat(resultado.getItens().get(0).getCompatibilidade()).isEqualTo(Compatibilidade.ALTA);
+    }
+
+    @Test
+    @DisplayName("sugerirRendaFixa - deve devolver id e código para o front abrir o detalhe do Tesouro pelo código e do título privado pelo id")
+    void sugerirRendaFixa_deveDevolverIdECodigo() {
+        UUID usuarioId = UUID.randomUUID();
+        RendaFixaListagemResponseDTO tesouro = criarTitulo(CategoriaRendaFixa.TESOURO, "IPCA",
+                LocalDate.now().plusDays(3000), "DIARIA", false, false, BigDecimal.ONE);
+        tesouro.setCodigo("IPCA2035");
+        RendaFixaListagemResponseDTO cdb = criarTitulo(CategoriaRendaFixa.CDB, "CDI",
+                LocalDate.now().plusDays(3000), "DIARIA", false, true, BigDecimal.ONE);
+
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
+                criarPerfil("MODERADO", "LONGO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.valueOf(9999), List.of(), List.of(), true)));
+        when(rendaFixaUnificadaService.listar("livre", usuarioId)).thenReturn(List.of(tesouro, cdb));
+
+        SugestoesRendaFixaResponseDTO resultado = dashboardSugestaoService.sugerirRendaFixa(usuarioId);
+
+        assertThat(resultado.getItens())
+                .extracting(SugestaoRendaFixaItemDTO::getId, SugestaoRendaFixaItemDTO::getCodigo)
+                .containsExactlyInAnyOrder(
+                        tuple(tesouro.getId(), "IPCA2035"),
+                        tuple(cdb.getId(), null));
     }
 }

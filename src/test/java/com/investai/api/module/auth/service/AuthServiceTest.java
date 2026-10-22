@@ -2,11 +2,13 @@ package com.investai.api.module.auth.service;
 
 import com.investai.api.infra.exception.BusinessException;
 import com.investai.api.infra.exception.ConflictException;
+import com.investai.api.infra.exception.MuitasTentativasException;
 import com.investai.api.module.auth.dto.*;
 import com.investai.api.module.auth.entity.RefreshToken;
 import com.investai.api.module.auth.entity.Role;
 import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.repository.UsuarioRepository;
+import com.investai.api.module.auth.service.LimiteTentativasService.Operacao;
 import com.investai.api.module.perfil.entity.PerfilInvestidor;
 import com.investai.api.module.perfil.repository.PerfilInvestidorRepository;
 import com.investai.api.shared.security.JwtUtil;
@@ -47,6 +49,11 @@ class AuthServiceTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private LimiteTentativasService limiteTentativasService;
+
+    private static final String IP = "200.10.20.30";
 
     private CadastroRequestDTO dto;
 
@@ -273,7 +280,7 @@ class AuthServiceTest {
         when(refreshTokenService.criar(usuario))
                 .thenReturn(refreshToken);
 
-        LoginResponseDTO response = authService.login(dto);
+        LoginResponseDTO response = authService.login(dto, IP);
 
         assertNotNull(response);
 
@@ -294,6 +301,9 @@ class AuthServiceTest {
 
         verify(refreshTokenService).criar(usuario);
         verify(jwtUtil).gerarToken(usuario);
+        verify(limiteTentativasService).verificar(LimiteTentativasService.Operacao.LOGIN, "lucas@email.com", IP);
+        verify(limiteTentativasService).limpar(LimiteTentativasService.Operacao.LOGIN, "lucas@email.com");
+        verify(limiteTentativasService, never()).registrarTentativa(any(), any(), any());
     }
 
     @Test
@@ -446,5 +456,86 @@ class AuthServiceTest {
 
         verify(refreshTokenService)
                 .revogar("refresh-token");
+    }
+
+    @Test
+    void naoDeveRenovarSessaoDeContaDesativada() {
+        RefreshRequestDTO dto = RefreshRequestDTO.builder().refreshToken("refresh-de-desativado").build();
+        Usuario desativado = Usuario.builder()
+                .id(UUID.randomUUID())
+                .nome("Lucas")
+                .email("lucas@email.com")
+                .ativo(false)
+                .role(Role.USUARIO)
+                .build();
+        RefreshToken tokenAtual = RefreshToken.builder()
+                .token("refresh-de-desativado")
+                .usuario(desativado)
+                .revogado(false)
+                .expiraEm(LocalDateTime.now().plusDays(7))
+                .build();
+        when(refreshTokenService.buscarValido("refresh-de-desativado")).thenReturn(tokenAtual);
+
+        BusinessException erro = assertThrows(BusinessException.class, () -> authService.refresh(dto));
+
+        assertEquals("Sua conta está desativada. Fale com o suporte da plataforma.", erro.getMessage());
+        verify(jwtUtil, never()).gerarToken(any());
+        verify(refreshTokenService, never()).criar(any());
+    }
+
+    private Usuario usuarioAtivo() {
+        return Usuario.builder().id(UUID.randomUUID()).nome("Lucas").email("lucas@email.com")
+                .senha("senha-criptografada").ativo(true).role(Role.USUARIO).build();
+    }
+
+    @Test
+    void loginComSenhaErradaDeveContarATentativa() {
+        LoginRequestDTO login = LoginRequestDTO.builder().email("Lucas@Email.com").senha("errada").build();
+        Usuario usuario = usuarioAtivo();
+        when(usuarioRepository.findByEmail("lucas@email.com")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("errada", usuario.getSenha())).thenReturn(false);
+
+        BusinessException erro = assertThrows(BusinessException.class, () -> authService.login(login, IP));
+
+        assertEquals("Credenciais inválidas", erro.getMessage());
+        verify(limiteTentativasService).registrarTentativa(Operacao.LOGIN, "lucas@email.com", IP);
+        verify(limiteTentativasService, never()).limpar(any(), any());
+        verifyNoInteractions(jwtUtil, refreshTokenService);
+    }
+
+    @Test
+    void loginComEmailInexistenteDeveContarIgualEDarAMesmaMensagem() {
+        LoginRequestDTO login = LoginRequestDTO.builder().email("naoexiste@email.com").senha("123456").build();
+        when(usuarioRepository.findByEmail("naoexiste@email.com")).thenReturn(Optional.empty());
+
+        BusinessException erro = assertThrows(BusinessException.class, () -> authService.login(login, IP));
+
+        assertEquals("Credenciais inválidas", erro.getMessage());
+        verify(limiteTentativasService).registrarTentativa(Operacao.LOGIN, "naoexiste@email.com", IP);
+    }
+
+    @Test
+    void loginDeContaDesativadaDeveContarATentativa() {
+        LoginRequestDTO login = LoginRequestDTO.builder().email("lucas@email.com").senha("123456").build();
+        Usuario usuario = usuarioAtivo();
+        usuario.setAtivo(false);
+        when(usuarioRepository.findByEmail("lucas@email.com")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("123456", usuario.getSenha())).thenReturn(true);
+
+        BusinessException erro = assertThrows(BusinessException.class, () -> authService.login(login, IP));
+
+        assertEquals("Credenciais inválidas", erro.getMessage());
+        verify(limiteTentativasService).registrarTentativa(Operacao.LOGIN, "lucas@email.com", IP);
+    }
+
+    @Test
+    void loginBloqueadoNaoDeveNemConferirASenha() {
+        LoginRequestDTO login = LoginRequestDTO.builder().email("lucas@email.com").senha("123456").build();
+        doThrow(new MuitasTentativasException(900)).when(limiteTentativasService).verificar(Operacao.LOGIN, "lucas@email.com", IP);
+
+        assertThrows(MuitasTentativasException.class, () -> authService.login(login, IP));
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder, jwtUtil, refreshTokenService);
+        verify(limiteTentativasService, never()).registrarTentativa(any(), any(), any());
     }
 }

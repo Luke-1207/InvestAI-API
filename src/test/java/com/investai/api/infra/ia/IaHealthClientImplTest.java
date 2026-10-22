@@ -2,6 +2,7 @@ package com.investai.api.infra.ia;
 
 import com.investai.api.infra.ia.dto.IaHealthResponseDTO;
 import com.investai.api.infra.ia.dto.IaHealthStatusDTO;
+import com.investai.api.infra.ia.dto.IaLlmHealthDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.web.client.RestClientException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,5 +100,45 @@ class IaHealthClientImplTest {
         when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.body(IaHealthResponseDTO.class)).thenReturn(response);
+    }
+
+    @Test
+    @DisplayName("verificarStatus - deve repassar o estado do LLM informado pelo microsserviço")
+    void verificarStatus_deveRepassarEstadoDoLlm() {
+        IaHealthResponseDTO response = new IaHealthResponseDTO();
+        response.setStatus("ok");
+        response.setRabbitmq(true);
+        response.setLlm(IaLlmHealthDTO.builder().disponivel(false).provider("groq").modelo("openai/gpt-oss-120b")
+                .detalhe("O provedor recusou a chave de API").build());
+        mockarResposta(response);
+
+        IaHealthStatusDTO resultado = iaHealthClientImpl.verificarStatus();
+
+        assertThat(resultado.getLlm().isDisponivel()).isFalse();
+        assertThat(resultado.getLlm().getDetalhe()).isEqualTo("O provedor recusou a chave de API");
+    }
+
+    @Test
+    @DisplayName("verificarStatus - sem forçar deve consultar o /health normal")
+    void verificarStatus_semForcar_deveUsarHealthNormal() {
+        IaHealthResponseDTO response = new IaHealthResponseDTO();
+        response.setStatus("ok");
+        mockarResposta(response);
+
+        iaHealthClientImpl.verificarStatus();
+
+        verify(requestHeadersUriSpec).uri("http://localhost:8000/health");
+    }
+
+    @Test
+    @DisplayName("verificarStatus - forçando deve pedir ao microsserviço uma checagem nova do LLM")
+    void verificarStatus_forcando_deveMandarForcarTrue() {
+        IaHealthResponseDTO response = new IaHealthResponseDTO();
+        response.setStatus("ok");
+        mockarResposta(response);
+
+        iaHealthClientImpl.verificarStatus(true);
+
+        verify(requestHeadersUriSpec).uri("http://localhost:8000/health?forcar=true");
     }
 }

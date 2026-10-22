@@ -1,5 +1,6 @@
 package com.investai.api.infra.rabbitmq;
 
+import com.investai.api.infra.rabbitmq.dto.ComparacaoIaResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.RankingResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.ResumoResponseDTO;
 import org.junit.jupiter.api.DisplayName;
@@ -40,5 +41,15 @@ class IaMensagemConsumerTest {
         iaMensagemConsumer.receberResumo(response);
 
         verify(pendingRequestStore).completarResumo("xyz", response);
+    }
+
+    @Test
+    @DisplayName("receberComparacao - deve delegar para completarComparacao com o correlationId da mensagem")
+    void receberComparacao_deveDelegarParaCompletarComparacao() {
+        ComparacaoIaResponseDTO response = ComparacaoIaResponseDTO.builder().correlationId("cmp").veredito("teste").build();
+
+        iaMensagemConsumer.receberComparacao(response);
+
+        verify(pendingRequestStore).completarComparacao("cmp", response);
     }
 }

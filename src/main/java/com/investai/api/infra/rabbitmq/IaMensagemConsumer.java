@@ -1,6 +1,7 @@
 package com.investai.api.infra.rabbitmq;
 
 import com.investai.api.config.RabbitConfig;
+import com.investai.api.infra.rabbitmq.dto.ComparacaoIaResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.RankingResponseDTO;
 import com.investai.api.infra.rabbitmq.dto.ResumoResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,11 @@ public class IaMensagemConsumer {
     public void receberResumo(ResumoResponseDTO response) {
         log.debug("Resumo recebido do microsserviço IA (correlationId={})", response.getCorrelationId());
         pendingRequestStore.completarResumo(response.getCorrelationId(), response);
+    }
+
+    @RabbitListener(queues = RabbitConfig.COMPARACAO_RESPONSE)
+    public void receberComparacao(ComparacaoIaResponseDTO response) {
+        log.debug("Veredito de comparação recebido do microsserviço IA (correlationId={})", response.getCorrelationId());
+        pendingRequestStore.completarComparacao(response.getCorrelationId(), response);
     }
 }

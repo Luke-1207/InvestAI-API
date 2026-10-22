@@ -140,6 +140,7 @@ class PerfilControllerTest {
                         QuizPerguntaResponseDTO.builder()
                                 .id(perguntaId)
                                 .texto("O que você quer conquistar com seus investimentos?")
+                                .apoio("Não existe resposta certa.")
                                 .tipo(TipoPergunta.UNICA_ESCOLHA)
                                 .obrigatoria(true)
                                 .opcoes(List.of(
@@ -147,6 +148,7 @@ class PerfilControllerTest {
                                                 .id(opcaoId)
                                                 .texto("Receber uma renda todo mês, sem precisar vender nada")
                                                 .emoji("💰")
+                                                .explicacao("Prioriza ativos que pagam rendimentos.")
                                                 .build()
                                 ))
                                 .build()
@@ -165,6 +167,8 @@ class PerfilControllerTest {
                 .andExpect(jsonPath("$.perguntas[0].opcoes[0].id").value(opcaoId.toString()))
                 .andExpect(jsonPath("$.perguntas[0].opcoes[0].texto").value("Receber uma renda todo mês, sem precisar vender nada"))
                 .andExpect(jsonPath("$.perguntas[0].opcoes[0].emoji").value("💰"))
+                .andExpect(jsonPath("$.perguntas[0].apoio").value("Não existe resposta certa."))
+                .andExpect(jsonPath("$.perguntas[0].opcoes[0].explicacao").value("Prioriza ativos que pagam rendimentos."))
                 .andExpect(jsonPath("$.perguntas[0].campoPerfil").doesNotExist())
                 .andExpect(jsonPath("$.perguntas[0].opcoes[0].mapeamentoJson").doesNotExist());
     }

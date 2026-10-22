@@ -85,6 +85,8 @@ public class SecurityConfig {
                         // Painel admin — somente GESTOR
                         .requestMatchers("/v1/usuarios/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers("/v1/dashboard/admin/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.GET, "/v1/acoes/gestao").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.GET, "/v1/renda-fixa/titulos/gestao").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.POST, "/v1/acoes").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.PUT, "/v1/acoes/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/v1/acoes/**").hasRole(Role.GESTOR.toString())

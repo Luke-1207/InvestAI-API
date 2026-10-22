@@ -6,6 +6,10 @@ import com.investai.api.module.auth.entity.Usuario;
 import com.investai.api.module.auth.service.UsuarioDetailsService;
 import com.investai.api.module.dashboard.dto.DashboardAdminResponseDTO;
 import com.investai.api.module.dashboard.service.DashboardAdminService;
+import com.investai.api.module.integracao.dto.SaudeIntegracoesResponseDTO;
+import com.investai.api.module.integracao.dto.StatusIntegracaoDTO;
+import com.investai.api.module.integracao.entity.Integracao;
+import com.investai.api.module.integracao.service.SaudeIntegracoesService;
 import com.investai.api.shared.security.JwtAuthFilter;
 import com.investai.api.shared.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,10 +21,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = DashboardAdminController.class)
@@ -29,6 +35,9 @@ class DashboardAdminControllerSecurityTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private SaudeIntegracoesService saudeIntegracoesService;
 
     @MockitoBean
     private DashboardAdminService dashboardAdminService;
@@ -102,5 +111,57 @@ class DashboardAdminControllerSecurityTest {
         mockMvc.perform(get("/v1/dashboard/admin/ia-status")
                         .header("Authorization", "Bearer " + tokenGestor))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /dashboard/admin/integracoes - deve retornar 403 pra usuário comum")
+    void obterSaudeIntegracoes_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(get("/v1/dashboard/admin/integracoes")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /dashboard/admin/integracoes - deve permitir gestor")
+    void obterSaudeIntegracoes_devePermitirGestor() throws Exception {
+        when(saudeIntegracoesService.verificar()).thenReturn(SaudeIntegracoesResponseDTO.builder().integracoes(List.of()).build());
+
+        mockMvc.perform(get("/v1/dashboard/admin/integracoes")
+                        .header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /dashboard/admin/integracoes/verificar - deve retornar 403 pra usuário comum")
+    void verificarIntegracoes_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(post("/v1/dashboard/admin/integracoes/verificar")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("POST /dashboard/admin/integracoes/verificar - deve exigir login")
+    void verificarIntegracoes_deveRetornar401SemToken() throws Exception {
+        mockMvc.perform(post("/v1/dashboard/admin/integracoes/verificar"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /dashboard/admin/integracoes/{chave}/verificar - deve permitir gestor")
+    void verificarIntegracao_devePermitirGestor() throws Exception {
+        when(saudeIntegracoesService.verificarAgora(Integracao.HG_BRASIL))
+                .thenReturn(StatusIntegracaoDTO.builder().chave(Integracao.HG_BRASIL).build());
+
+        mockMvc.perform(post("/v1/dashboard/admin/integracoes/HG_BRASIL/verificar")
+                        .header("Authorization", "Bearer " + tokenGestor))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /dashboard/admin/integracoes/{chave}/verificar - deve retornar 403 pra usuário comum")
+    void verificarIntegracao_deveRetornar403ParaUsuarioComum() throws Exception {
+        mockMvc.perform(post("/v1/dashboard/admin/integracoes/HG_BRASIL/verificar")
+                        .header("Authorization", "Bearer " + tokenUsuario))
+                .andExpect(status().isForbidden());
     }
 }

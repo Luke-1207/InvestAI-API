@@ -1,7 +1,10 @@
 package com.investai.api.module.rendafixa.service;
 
 import com.investai.api.module.rendafixa.dto.RentabilidadeEstimadaDTO;
+import com.investai.api.module.rendafixa.entity.Indexador;
+import com.investai.api.module.rendafixa.entity.TipoTesouro;
 import com.investai.api.module.rendafixa.entity.TituloPrivado;
+import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -9,38 +12,49 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
-/**
- * Calcula a rentabilidade líquida estimada de um título privado, aplicando
- * o desconto de IR regressivo sobre o taxaPercentual bruto.
- * <p>
- * Importante: como ainda não temos indicador de mercado ao vivo (Selic/CDI —
- * isso é o INVAI-50, fora dessa sprint), o cálculo aplica o desconto de IR
- * proporcionalmente sobre o taxaPercentual guardado (seja ele "% do CDI",
- * "% a.a." pro prefixado, ou o spread do IPCA+), em vez de resolver pro
- * valor absoluto em R$/ano. É matematicamente válido — IR é um percentual
- * reto sobre o rendimento — mas o número fica na mesma unidade do
- * taxaPercentual original, não necessariamente "% a.a." puro.
- */
 @Service
 public class CalculadoraRentabilidadeService {
 
+    private static final BigDecimal CEM = BigDecimal.valueOf(100);
+
     public RentabilidadeEstimadaDTO calcular(TituloPrivado titulo) {
-        long diasParaVencimento = ChronoUnit.DAYS.between(LocalDate.now(), titulo.getVencimento());
-        return calcularParaPrazo(titulo.getTaxaPercentual(), titulo.isIsentoIr(), diasParaVencimento);
+        return calcularParaPrazo(titulo.getTaxaPercentual(), titulo.isIsentoIr(), diasAte(titulo.getVencimento()),
+                taxaSomadaAoIndexador(titulo));
+    }
+
+    public RentabilidadeEstimadaDTO calcular(TituloTesouro titulo) {
+        return calcularParaPrazo(titulo.getTaxaAnual(), false, diasAte(titulo.getVencimento()),
+                taxaSomadaAoIndexador(titulo));
+    }
+
+    public static boolean taxaSomadaAoIndexador(TituloPrivado titulo) {
+        return titulo.getIndexador() == Indexador.IPCA;
+    }
+
+    public static boolean taxaSomadaAoIndexador(TituloTesouro titulo) {
+        return titulo.getTipo() != TipoTesouro.PREFIXADO;
     }
 
     public RentabilidadeEstimadaDTO calcularParaPrazo(BigDecimal taxaBruta, boolean isentoIr, long prazoEmDias) {
+        return calcularParaPrazo(taxaBruta, isentoIr, prazoEmDias, false);
+    }
+
+    public RentabilidadeEstimadaDTO calcularParaPrazo(BigDecimal taxaBruta, boolean isentoIr, long prazoEmDias,
+                                                      boolean taxaSomadaAoIndexador) {
         BigDecimal aliquotaIR = isentoIr ? BigDecimal.ZERO : calcularAliquotaIR(prazoEmDias);
+        BigDecimal percentualLiquido = CEM.subtract(aliquotaIR);
+        boolean liquidaNaMesmaUnidade = isentoIr || !taxaSomadaAoIndexador;
 
-        BigDecimal fatorLiquido = BigDecimal.ONE.subtract(
-                aliquotaIR.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
-
-        BigDecimal taxaLiquida = taxaBruta.multiply(fatorLiquido).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal taxaLiquida = liquidaNaMesmaUnidade
+                ? taxaBruta.multiply(percentualLiquido).divide(CEM, 2, RoundingMode.HALF_UP)
+                : null;
 
         return RentabilidadeEstimadaDTO.builder()
                 .taxaBrutaAnual(taxaBruta)
                 .aliquotaIR(aliquotaIR)
                 .taxaLiquidaAnual(taxaLiquida)
+                .taxaSomadaAoIndexador(taxaSomadaAoIndexador)
+                .percentualRendimentoLiquido(percentualLiquido)
                 .build();
     }
 
@@ -49,5 +63,9 @@ public class CalculadoraRentabilidadeService {
         if (diasParaVencimento <= 360) return BigDecimal.valueOf(20.0);
         if (diasParaVencimento <= 720) return BigDecimal.valueOf(17.5);
         return BigDecimal.valueOf(15.0);
+    }
+
+    private long diasAte(LocalDate vencimento) {
+        return ChronoUnit.DAYS.between(LocalDate.now(), vencimento);
     }
 }

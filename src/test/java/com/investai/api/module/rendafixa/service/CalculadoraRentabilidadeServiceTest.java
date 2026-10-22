@@ -3,8 +3,10 @@ package com.investai.api.module.rendafixa.service;
 import com.investai.api.module.rendafixa.dto.RentabilidadeEstimadaDTO;
 import com.investai.api.module.rendafixa.entity.Indexador;
 import com.investai.api.module.rendafixa.entity.TipoLiquidez;
+import com.investai.api.module.rendafixa.entity.TipoTesouro;
 import com.investai.api.module.rendafixa.entity.TipoTituloPrivado;
 import com.investai.api.module.rendafixa.entity.TituloPrivado;
+import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -19,11 +21,15 @@ class CalculadoraRentabilidadeServiceTest {
     private final CalculadoraRentabilidadeService calculadoraRentabilidadeService = new CalculadoraRentabilidadeService();
 
     private TituloPrivado criarTitulo(BigDecimal taxa, LocalDate vencimento, boolean isentoIr) {
+        return criarTitulo(Indexador.CDI, taxa, vencimento, isentoIr);
+    }
+
+    private TituloPrivado criarTitulo(Indexador indexador, BigDecimal taxa, LocalDate vencimento, boolean isentoIr) {
         return TituloPrivado.builder()
                 .id(UUID.randomUUID())
                 .tipo(TipoTituloPrivado.CDB)
                 .emissor("Banco Teste")
-                .indexador(Indexador.CDI)
+                .indexador(indexador)
                 .taxaPercentual(taxa)
                 .vencimento(vencimento)
                 .investimentoMinimo(BigDecimal.valueOf(500))
@@ -138,5 +144,88 @@ class CalculadoraRentabilidadeServiceTest {
 
         assertThat(resultado.getAliquotaIR()).isEqualByComparingTo("0");
         assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("95.00");
+    }
+
+    private TituloTesouro criarTesouro(TipoTesouro tipo, BigDecimal taxa) {
+        return TituloTesouro.builder()
+                .id(UUID.randomUUID())
+                .codigo("tesouro-" + tipo.name().toLowerCase())
+                .nome("Tesouro " + tipo.name())
+                .tipo(tipo)
+                .taxaAnual(taxa)
+                .precoMinimo(BigDecimal.valueOf(100))
+                .vencimento(LocalDate.now().plusDays(1000))
+                .build();
+    }
+
+    @Test
+    @DisplayName("calcular - CDB IPCA+ não deve descontar o IR só da parte fixa e deve informar a parcela líquida")
+    void calcular_tituloIpca_deveInformarParcelaLiquidaSemTaxaLiquida() {
+        TituloPrivado titulo = criarTitulo(Indexador.IPCA, BigDecimal.valueOf(6.5), LocalDate.now().plusDays(1000), false);
+
+        RentabilidadeEstimadaDTO resultado = calculadoraRentabilidadeService.calcular(titulo);
+
+        assertThat(resultado.isTaxaSomadaAoIndexador()).isTrue();
+        assertThat(resultado.getAliquotaIR()).isEqualByComparingTo("15.0");
+        assertThat(resultado.getTaxaLiquidaAnual()).isNull();
+        assertThat(resultado.getPercentualRendimentoLiquido()).isEqualByComparingTo("85.0");
+    }
+
+    @Test
+    @DisplayName("calcular - LCI IPCA+ isenta deve manter a taxa líquida igual à bruta")
+    void calcular_tituloIpcaIsento_deveManterTaxaLiquida() {
+        TituloPrivado titulo = criarTitulo(Indexador.IPCA, BigDecimal.valueOf(5.2), LocalDate.now().plusDays(1000), true);
+
+        RentabilidadeEstimadaDTO resultado = calculadoraRentabilidadeService.calcular(titulo);
+
+        assertThat(resultado.isTaxaSomadaAoIndexador()).isTrue();
+        assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("5.20");
+        assertThat(resultado.getPercentualRendimentoLiquido()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    @DisplayName("calcular - título CDI deve manter a taxa líquida em % do CDI")
+    void calcular_tituloCdi_deveManterTaxaLiquida() {
+        TituloPrivado titulo = criarTitulo(BigDecimal.valueOf(110), LocalDate.now().plusDays(1000), false);
+
+        RentabilidadeEstimadaDTO resultado = calculadoraRentabilidadeService.calcular(titulo);
+
+        assertThat(resultado.isTaxaSomadaAoIndexador()).isFalse();
+        assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("93.50");
+        assertThat(resultado.getPercentualRendimentoLiquido()).isEqualByComparingTo("85.0");
+    }
+
+    @Test
+    @DisplayName("calcular - Tesouro Selic e IPCA+ devem informar a parcela líquida em vez da taxa líquida")
+    void calcular_tesouroSelicEIpca_deveInformarParcelaLiquida() {
+        for (TipoTesouro tipo : new TipoTesouro[]{TipoTesouro.SELIC, TipoTesouro.IPCA}) {
+            RentabilidadeEstimadaDTO resultado =
+                    calculadoraRentabilidadeService.calcular(criarTesouro(tipo, BigDecimal.valueOf(0.08)));
+
+            assertThat(resultado.isTaxaSomadaAoIndexador()).isTrue();
+            assertThat(resultado.getTaxaLiquidaAnual()).isNull();
+            assertThat(resultado.getPercentualRendimentoLiquido()).isEqualByComparingTo("85.0");
+        }
+    }
+
+    @Test
+    @DisplayName("calcular - Tesouro Prefixado deve trazer a taxa líquida ao ano")
+    void calcular_tesouroPrefixado_deveTrazerTaxaLiquida() {
+        RentabilidadeEstimadaDTO resultado =
+                calculadoraRentabilidadeService.calcular(criarTesouro(TipoTesouro.PREFIXADO, BigDecimal.valueOf(12)));
+
+        assertThat(resultado.isTaxaSomadaAoIndexador()).isFalse();
+        assertThat(resultado.getTaxaLiquidaAnual()).isEqualByComparingTo("10.20");
+    }
+
+    @Test
+    @DisplayName("calcularParaPrazo - taxa somada ao indexador sem isenção não deve ter taxa líquida")
+    void calcularParaPrazo_taxaSomada_naoDeveTerTaxaLiquida() {
+        RentabilidadeEstimadaDTO resultado =
+                calculadoraRentabilidadeService.calcularParaPrazo(BigDecimal.valueOf(6), false, 200, true);
+
+        assertThat(resultado.getAliquotaIR()).isEqualByComparingTo("20.0");
+        assertThat(resultado.getTaxaLiquidaAnual()).isNull();
+        assertThat(resultado.getPercentualRendimentoLiquido()).isEqualByComparingTo("80.0");
     }
 }

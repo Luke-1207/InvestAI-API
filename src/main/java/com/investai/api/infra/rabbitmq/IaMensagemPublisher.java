@@ -80,4 +80,33 @@ public class IaMensagemPublisher {
             throw new IaIndisponivelException("Serviço de resumo por IA indisponível no momento");
         }
     }
+
+    public ComparacaoIaResponseDTO enviarComparacaoEAguardar(
+            PerfilIaDTO perfil, Map<String, Object> ativoA, Map<String, Object> ativoB
+    ) {
+        String correlationId = UUID.randomUUID().toString();
+
+        ComparacaoIaRequestDTO request = ComparacaoIaRequestDTO.builder()
+                .correlationId(correlationId)
+                .perfil(perfil)
+                .ativoA(ativoA)
+                .ativoB(ativoB)
+                .build();
+
+        CompletableFuture<ComparacaoIaResponseDTO> future = pendingRequestStore.registrarComparacao(correlationId);
+        rabbitTemplate.convertAndSend(RabbitConfig.COMPARACAO_REQUEST, request);
+
+        try {
+            return future.get(timeoutSegundos, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            pendingRequestStore.removerComparacao(correlationId);
+            log.error("Timeout aguardando veredito do microsserviço IA (correlationId={})", correlationId);
+            throw new IaIndisponivelException("Serviço de comparação por IA não respondeu a tempo");
+        } catch (InterruptedException | ExecutionException e) {
+            pendingRequestStore.removerComparacao(correlationId);
+            Thread.currentThread().interrupt();
+            log.error("Falha aguardando veredito do microsserviço IA (correlationId={}): {}", correlationId, e.getMessage());
+            throw new IaIndisponivelException("Serviço de comparação por IA indisponível no momento");
+        }
+    }
 }

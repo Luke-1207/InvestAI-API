@@ -17,5 +17,6 @@ public class TituloTesouroDetalheResponseDTO {
     private LocalDate vencimento;
     private boolean pagaJurosSemestrais;
     private String liquidez;
+    private RentabilidadeEstimadaDTO rentabilidadeEstimada;
     private String resumoIA;
 }

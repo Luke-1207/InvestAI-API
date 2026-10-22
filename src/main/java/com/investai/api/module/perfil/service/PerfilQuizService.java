@@ -72,6 +72,8 @@ public class PerfilQuizService {
             }
         }
 
+        validarSetoresSemConflito(acumulado.setoresPreferidos);
+
         PerfilInvestidor perfil = perfilInvestidorRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Perfil do investidor não encontrado"));
 
@@ -101,6 +103,17 @@ public class PerfilQuizService {
 
         if (!faltando.isEmpty()) {
             throw new BusinessException("Perguntas obrigatórias não respondidas: " + String.join("; ", faltando));
+        }
+    }
+
+    private void validarSetoresSemConflito(List<SetorPreferido> setores) {
+        Map<String, PreferenciaSetor> preferenciaPorSetor = new HashMap<>();
+        for (SetorPreferido setor : setores) {
+            PreferenciaSetor anterior = preferenciaPorSetor.putIfAbsent(setor.getSetor(), setor.getPreferencia());
+            if (anterior != null && anterior != setor.getPreferencia()) {
+                throw new BusinessException("Você marcou o setor " + setor.getSetor()
+                        + " para ver com destaque e para evitar ao mesmo tempo. Escolha só uma das opções.");
+            }
         }
     }
 
@@ -171,6 +184,7 @@ public class PerfilQuizService {
         return QuizPerguntaResponseDTO.builder()
                 .id(pergunta.getId())
                 .texto(pergunta.getTexto())
+                .apoio(pergunta.getApoio())
                 .tipo(pergunta.getTipo())
                 .obrigatoria(pergunta.isObrigatoria())
                 .opcoes(opcoes)
@@ -182,6 +196,7 @@ public class PerfilQuizService {
                 .id(opcao.getId())
                 .texto(opcao.getTexto())
                 .emoji(opcao.getEmoji())
+                .explicacao(opcao.getExplicacao())
                 .build();
     }
 }

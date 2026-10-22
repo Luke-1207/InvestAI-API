@@ -6,7 +6,6 @@ import com.investai.api.module.relatorio.dto.TituloRendaFixaRelatorio;
 import com.investai.api.module.rendafixa.dto.RentabilidadeEstimadaDTO;
 import com.investai.api.module.rendafixa.entity.Indexador;
 import com.investai.api.module.rendafixa.entity.TipoLiquidez;
-import com.investai.api.module.rendafixa.entity.TipoTesouro;
 import com.investai.api.module.rendafixa.entity.TituloPrivado;
 import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import com.investai.api.module.rendafixa.repository.TituloPrivadoRepository;
@@ -60,7 +59,7 @@ public class RelatorioRendaFixaService {
                 .categoria(titulo.getTipo().name())
                 .indexador(titulo.getIndexador())
                 .taxa(titulo.getTaxaPercentual())
-                .taxaSomadaAoIndexador(titulo.getIndexador() == Indexador.IPCA)
+                .taxaSomadaAoIndexador(CalculadoraRentabilidadeService.taxaSomadaAoIndexador(titulo))
                 .vencimento(titulo.getVencimento())
                 .investimentoMinimo(titulo.getInvestimentoMinimo())
                 .liquidez(titulo.getLiquidez() == TipoLiquidez.DIARIA ? LIQUIDEZ_DIARIA : LIQUIDEZ_NO_VENCIMENTO)
@@ -68,7 +67,7 @@ public class RelatorioRendaFixaService {
                 .isentoIr(titulo.isIsentoIr())
                 .rentabilidades(calcularRentabilidades(
                         titulo.getTaxaPercentual(), titulo.isIsentoIr(), titulo.getVencimento(),
-                        titulo.getIndexador() == Indexador.IPCA))
+                        CalculadoraRentabilidadeService.taxaSomadaAoIndexador(titulo)))
                 .build();
     }
 
@@ -79,14 +78,14 @@ public class RelatorioRendaFixaService {
                 .categoria(CATEGORIA_TESOURO)
                 .indexador(Indexador.valueOf(titulo.getTipo().name()))
                 .taxa(titulo.getTaxaAnual())
-                .taxaSomadaAoIndexador(titulo.getTipo() != TipoTesouro.PREFIXADO)
+                .taxaSomadaAoIndexador(CalculadoraRentabilidadeService.taxaSomadaAoIndexador(titulo))
                 .vencimento(titulo.getVencimento())
                 .investimentoMinimo(titulo.getPrecoMinimo())
                 .liquidez(LIQUIDEZ_DIARIA)
                 .garantia(GARANTIA_TESOURO)
                 .isentoIr(false)
                 .rentabilidades(calcularRentabilidades(titulo.getTaxaAnual(), false, titulo.getVencimento(),
-                        titulo.getTipo() != TipoTesouro.PREFIXADO))
+                        CalculadoraRentabilidadeService.taxaSomadaAoIndexador(titulo)))
                 .build();
     }
 
@@ -109,13 +108,13 @@ public class RelatorioRendaFixaService {
     private RentabilidadePrazoDTO linha(
             String prazo, BigDecimal taxa, boolean isentoIr, long dias, boolean taxaSomadaAoIndexador
     ) {
-        RentabilidadeEstimadaDTO estimativa = calculadoraRentabilidadeService.calcularParaPrazo(taxa, isentoIr, dias);
-        boolean liquidaNaMesmaUnidade = isentoIr || !taxaSomadaAoIndexador;
+        RentabilidadeEstimadaDTO estimativa =
+                calculadoraRentabilidadeService.calcularParaPrazo(taxa, isentoIr, dias, taxaSomadaAoIndexador);
         return new RentabilidadePrazoDTO(
                 prazo,
                 estimativa.getAliquotaIR(),
                 estimativa.getTaxaBrutaAnual(),
-                liquidaNaMesmaUnidade ? estimativa.getTaxaLiquidaAnual() : null);
+                estimativa.getTaxaLiquidaAnual());
     }
 
     private UUID comoUuid(String valor) {

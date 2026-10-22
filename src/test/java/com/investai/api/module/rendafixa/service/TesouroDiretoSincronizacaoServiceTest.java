@@ -3,6 +3,8 @@ package com.investai.api.module.rendafixa.service;
 import com.investai.api.infra.exception.TesouroDiretoIndisponivelException;
 import com.investai.api.infra.tesourodireto.TesouroDiretoClient;
 import com.investai.api.infra.tesourodireto.dto.TituloTesouroExternoDTO;
+import com.investai.api.module.integracao.entity.Integracao;
+import com.investai.api.module.integracao.service.MonitorIntegracoesService;
 import com.investai.api.module.rendafixa.entity.TipoTesouro;
 import com.investai.api.module.rendafixa.entity.TituloTesouro;
 import com.investai.api.module.rendafixa.repository.TituloTesouroRepository;
@@ -32,6 +34,9 @@ class TesouroDiretoSincronizacaoServiceTest {
 
     @Mock
     private TituloTesouroRepository tituloTesouroRepository;
+
+    @Mock
+    private MonitorIntegracoesService monitorIntegracoesService;
 
     @InjectMocks
     private TesouroDiretoSincronizacaoService tesouroDiretoSincronizacaoService;
@@ -79,6 +84,7 @@ class TesouroDiretoSincronizacaoServiceTest {
 
         ArgumentCaptor<List<TituloTesouro>> captor = ArgumentCaptor.forClass(List.class);
         verify(tituloTesouroRepository).saveAll(captor.capture());
+        verify(monitorIntegracoesService).registrarSucesso(Integracao.TESOURO_DIRETO);
 
         List<TituloTesouro> salvos = captor.getValue();
         assertThat(salvos).hasSize(2);
@@ -105,5 +111,6 @@ class TesouroDiretoSincronizacaoServiceTest {
 
         verify(tituloTesouroRepository, never()).saveAll(any());
         verify(tituloTesouroRepository, never()).save(any());
+        verify(monitorIntegracoesService).registrarFalha(Integracao.TESOURO_DIRETO, "brapi.dev fora do ar");
     }
 }

@@ -19,10 +19,10 @@ public class IaHealthClientImpl implements IaHealthClient {
     private String baseUrl;
 
     @Override
-    public IaHealthStatusDTO verificarStatus() {
+    public IaHealthStatusDTO verificarStatus(boolean forcar) {
         try {
             IaHealthResponseDTO response = iaHealthRestClient.get()
-                    .uri(baseUrl + "/health")
+                    .uri(baseUrl + "/health" + (forcar ? "?forcar=true" : ""))
                     .retrieve()
                     .body(IaHealthResponseDTO.class);
 
@@ -31,6 +31,7 @@ public class IaHealthClientImpl implements IaHealthClient {
             return IaHealthStatusDTO.builder()
                     .disponivel(disponivel)
                     .rabbitmqConectado(response != null ? response.getRabbitmq() : null)
+                    .llm(response != null ? response.getLlm() : null)
                     .build();
 
         } catch (Exception e) {
