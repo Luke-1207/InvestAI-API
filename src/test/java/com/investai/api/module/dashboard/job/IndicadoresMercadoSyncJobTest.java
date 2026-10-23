@@ -8,7 +8,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndicadoresMercadoSyncJobTest {
@@ -33,5 +37,35 @@ class IndicadoresMercadoSyncJobTest {
         indicadoresMercadoSyncJob.sincronizarSelicIpca();
 
         verify(indicadoresMercadoSincronizacaoService).sincronizarSelicIpca();
+    }
+
+    @Test
+    @DisplayName("sincronizarNaSubida - deve buscar mercado e Selic/IPCA quando nunca foram sincronizados")
+    void sincronizarNaSubida_bancoNovo_deveSincronizarTudo() {
+        when(indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()).thenReturn(true);
+
+        indicadoresMercadoSyncJob.sincronizarNaSubida();
+
+        verify(indicadoresMercadoSincronizacaoService).sincronizarMercado();
+        verify(indicadoresMercadoSincronizacaoService).sincronizarSelicIpca();
+    }
+
+    @Test
+    @DisplayName("sincronizarNaSubida - não deve sobrescrever Selic/IPCA atualizados nas últimas 24 horas")
+    void sincronizarNaSubida_selicIpcaRecentes_devePreservar() {
+        when(indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()).thenReturn(false);
+
+        indicadoresMercadoSyncJob.sincronizarNaSubida();
+
+        verify(indicadoresMercadoSincronizacaoService).sincronizarMercado();
+        verify(indicadoresMercadoSincronizacaoService, never()).sincronizarSelicIpca();
+    }
+
+    @Test
+    @DisplayName("sincronizarNaSubida - erro inesperado não deve derrubar a subida da aplicação")
+    void sincronizarNaSubida_erroInesperado_naoDevePropagar() {
+        doThrow(new IllegalStateException("banco fora")).when(indicadoresMercadoSincronizacaoService).sincronizarMercado();
+
+        assertThatCode(() -> indicadoresMercadoSyncJob.sincronizarNaSubida()).doesNotThrowAnyException();
     }
 }

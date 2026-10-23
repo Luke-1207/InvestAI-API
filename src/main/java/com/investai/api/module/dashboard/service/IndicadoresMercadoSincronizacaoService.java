@@ -18,12 +18,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class IndicadoresMercadoSincronizacaoService {
+
+    static final Duration VALIDADE_SELIC_IPCA = Duration.ofHours(24);
 
     private final IndicadoresMercadoRepository indicadoresMercadoRepository;
     private final HgBrasilClient hgBrasilClient;
@@ -52,6 +55,7 @@ public class IndicadoresMercadoSincronizacaoService {
         indicadores.setSincronizadoEm(LocalDateTime.now());
 
         indicadoresMercadoRepository.save(indicadores);
+        applicationEventPublisher.publishEvent(new IndicadoresMercadoAlteradosEvent(this));
         monitorIntegracoesService.registrarSucesso(Integracao.HG_BRASIL);
         log.info("Indicadores de mercado sincronizados com sucesso.");
     }
@@ -70,6 +74,7 @@ public class IndicadoresMercadoSincronizacaoService {
         }
 
         atualizarSelicIpca(selic, ipca);
+        applicationEventPublisher.publishEvent(new IndicadoresMercadoAlteradosEvent(this));
         monitorIntegracoesService.registrarSucesso(Integracao.BANCO_CENTRAL);
         log.info("Selic e IPCA sincronizados com o Banco Central com sucesso.");
     }
@@ -79,6 +84,15 @@ public class IndicadoresMercadoSincronizacaoService {
         IndicadoresMercado indicadores = atualizarSelicIpca(selicAtual, ipcaAcumulado12m);
         applicationEventPublisher.publishEvent(new IndicadoresMercadoAlteradosEvent(this));
         return toResponseDTO(indicadores);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean selicIpcaDesatualizados() {
+        LocalDateTime limite = LocalDateTime.now().minus(VALIDADE_SELIC_IPCA);
+        return indicadoresMercadoRepository.findTopByOrderByIdAsc()
+                .map(IndicadoresMercado::getSelicIpcaSincronizadoEm)
+                .map(sincronizadoEm -> sincronizadoEm.isBefore(limite))
+                .orElse(true);
     }
 
     @Transactional(readOnly = true)

@@ -3,6 +3,8 @@ package com.investai.api.module.dashboard.job;
 import com.investai.api.module.dashboard.service.IndicadoresMercadoSincronizacaoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,5 +25,18 @@ public class IndicadoresMercadoSyncJob {
     public void sincronizarSelicIpca() {
         log.info("Iniciando sincronização agendada de Selic/IPCA.");
         indicadoresMercadoSincronizacaoService.sincronizarSelicIpca();
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void sincronizarNaSubida() {
+        log.info("Sincronização inicial dos indicadores de mercado ao subir a aplicação.");
+        try {
+            indicadoresMercadoSincronizacaoService.sincronizarMercado();
+            if (indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()) {
+                indicadoresMercadoSincronizacaoService.sincronizarSelicIpca();
+            }
+        } catch (RuntimeException e) {
+            log.warn("Falha na sincronização inicial dos indicadores de mercado: {}", e.getMessage());
+        }
     }
 }

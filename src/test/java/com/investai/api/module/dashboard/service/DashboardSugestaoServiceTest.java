@@ -308,4 +308,45 @@ class DashboardSugestaoServiceTest {
                         tuple(tesouro.getId(), "IPCA2035"),
                         tuple(cdb.getId(), null));
     }
+
+    @Test
+    @DisplayName("sugerirRendaVariavel - catálogo sem ativos compatíveis deve explicar por que a lista está vazia")
+    void sugerirRendaVariavel_semAtivos_deveTrazerMensagem() {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
+                criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.TEN, List.of(), List.of(), true)));
+        when(acaoRepository.findByAtivoTrue()).thenReturn(List.of());
+
+        SugestoesRendaVariavelResponseDTO resultado = dashboardSugestaoService.sugerirRendaVariavel(usuarioId);
+
+        assertThat(resultado.getItens()).isEmpty();
+        assertThat(resultado.getMensagem()).isEqualTo(DashboardSugestaoService.MENSAGEM_SEM_RENDA_VARIAVEL);
+    }
+
+    @Test
+    @DisplayName("sugerirRendaVariavel - com sugestões não deve trazer mensagem")
+    void sugerirRendaVariavel_comSugestoes_naoDeveTrazerMensagem() {
+        UUID usuarioId = UUID.randomUUID();
+        Acao acao = criarAcao("PETR4", TipoAtivo.ACAO, "Petróleo");
+        PerfilInvestidor perfil = criarPerfil("MODERADO", "MEDIO_PRAZO", "CRESCIMENTO_PATRIMONIO", BigDecimal.TEN, List.of(), List.of(), true);
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(perfil));
+        when(acaoRepository.findByAtivoTrue()).thenReturn(List.of(acao));
+        when(acaoPontuacaoService.pontuarAcao(eq(acao), eq(perfil))).thenReturn(criarSugestao("PETR4", 60));
+
+        assertThat(dashboardSugestaoService.sugerirRendaVariavel(usuarioId).getMensagem()).isNull();
+    }
+
+    @Test
+    @DisplayName("sugerirRendaFixa - catálogo vazio deve explicar por que a lista está vazia")
+    void sugerirRendaFixa_semTitulos_deveTrazerMensagem() {
+        UUID usuarioId = UUID.randomUUID();
+        when(perfilInvestidorRepository.findByUsuarioId(usuarioId)).thenReturn(Optional.of(
+                criarPerfil("CONSERVADOR", "CURTO_PRAZO", "PRESERVAR_CAPITAL", BigDecimal.TEN, List.of(), List.of(), true)));
+        when(rendaFixaUnificadaService.listar("livre", usuarioId)).thenReturn(List.of());
+
+        SugestoesRendaFixaResponseDTO resultado = dashboardSugestaoService.sugerirRendaFixa(usuarioId);
+
+        assertThat(resultado.getItens()).isEmpty();
+        assertThat(resultado.getMensagem()).isEqualTo(DashboardSugestaoService.MENSAGEM_SEM_RENDA_FIXA);
+    }
 }
