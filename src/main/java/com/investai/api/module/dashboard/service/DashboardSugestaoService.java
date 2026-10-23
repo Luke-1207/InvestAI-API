@@ -23,6 +23,8 @@ public class DashboardSugestaoService {
     private static final int TOP_RENDA_VARIAVEL = 5;
     private static final int TOP_RENDA_FIXA = 3;
     private static final String MENSAGEM_PERFIL_INCOMPLETO = "Complete seu perfil para receber sugestões personalizadas.";
+    static final String MENSAGEM_SEM_RENDA_VARIAVEL = "Ainda não há ações, FIIs ou ETFs compatíveis com o seu perfil no catálogo.";
+    static final String MENSAGEM_SEM_RENDA_FIXA = "Ainda não há títulos de renda fixa compatíveis com o seu perfil no catálogo.";
 
     private final AcaoRepository acaoRepository;
     private final AcaoPontuacaoService acaoPontuacaoService;
@@ -47,7 +49,10 @@ public class DashboardSugestaoService {
                 .limit(TOP_RENDA_VARIAVEL)
                 .toList();
 
-        return SugestoesRendaVariavelResponseDTO.builder().itens(sugestoes).build();
+        return SugestoesRendaVariavelResponseDTO.builder()
+                .itens(sugestoes)
+                .mensagem(sugestoes.isEmpty() ? MENSAGEM_SEM_RENDA_VARIAVEL : null)
+                .build();
     }
 
     public SugestoesRendaFixaResponseDTO sugerirRendaFixa(UUID usuarioId) {
@@ -62,7 +67,10 @@ public class DashboardSugestaoService {
                 .limit(TOP_RENDA_FIXA)
                 .toList();
 
-        return SugestoesRendaFixaResponseDTO.builder().itens(sugestoes).build();
+        return SugestoesRendaFixaResponseDTO.builder()
+                .itens(sugestoes)
+                .mensagem(sugestoes.isEmpty() ? MENSAGEM_SEM_RENDA_FIXA : null)
+                .build();
     }
 
     private PerfilInvestidor buscarPerfil(UUID usuarioId) {
