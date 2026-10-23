@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -191,5 +192,63 @@ class IndicadoresMercadoSincronizacaoServiceTest {
 
         assertThat(resultado).isNotNull();
         assertThat(resultado.getIbovespaPontos()).isNull();
+    }
+
+    @Test
+    @DisplayName("sincronizarMercado - deve avisar o dashboard para descartar o cache depois de gravar")
+    void sincronizarMercado_devePublicarEventoDeIndicadoresAlterados() {
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.empty());
+        when(hgBrasilClient.obterIndicadoresMercado()).thenReturn(IndicadoresMercadoExternoDTO.builder().build());
+
+        indicadoresMercadoSincronizacaoService.sincronizarMercado();
+
+        verify(applicationEventPublisher).publishEvent(any(IndicadoresMercadoAlteradosEvent.class));
+    }
+
+    @Test
+    @DisplayName("sincronizarSelicIpca - deve avisar o dashboard para descartar o cache depois de gravar")
+    void sincronizarSelicIpca_devePublicarEventoDeIndicadoresAlterados() {
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.empty());
+        when(bcbClient.obterSelicAtual()).thenReturn(BigDecimal.TEN);
+        when(bcbClient.obterIpcaAcumulado12Meses()).thenReturn(BigDecimal.ONE);
+        when(indicadoresMercadoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        indicadoresMercadoSincronizacaoService.sincronizarSelicIpca();
+
+        verify(applicationEventPublisher).publishEvent(any(IndicadoresMercadoAlteradosEvent.class));
+    }
+
+    @Test
+    @DisplayName("sincronizarSelicIpca - falha no Banco Central não deve invalidar o cache")
+    void sincronizarSelicIpca_falha_naoDevePublicarEvento() {
+        when(bcbClient.obterSelicAtual()).thenThrow(new BcbIndisponivelException("timeout"));
+
+        indicadoresMercadoSincronizacaoService.sincronizarSelicIpca();
+
+        verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("selicIpcaDesatualizados - sem snapshot ou sem sincronização registrada deve pedir sincronização")
+    void selicIpcaDesatualizados_semDados_deveSerTrue() {
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.empty());
+        assertThat(indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()).isTrue();
+
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(new IndicadoresMercado()));
+        assertThat(indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()).isTrue();
+    }
+
+    @Test
+    @DisplayName("selicIpcaDesatualizados - deve considerar desatualizado só depois de 24 horas")
+    void selicIpcaDesatualizados_deveRespeitarAValidade() {
+        IndicadoresMercado recente = new IndicadoresMercado();
+        recente.setSelicIpcaSincronizadoEm(LocalDateTime.now().minusHours(2));
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(recente));
+        assertThat(indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()).isFalse();
+
+        IndicadoresMercado antigo = new IndicadoresMercado();
+        antigo.setSelicIpcaSincronizadoEm(LocalDateTime.now().minusHours(25));
+        when(indicadoresMercadoRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(antigo));
+        assertThat(indicadoresMercadoSincronizacaoService.selicIpcaDesatualizados()).isTrue();
     }
 }
