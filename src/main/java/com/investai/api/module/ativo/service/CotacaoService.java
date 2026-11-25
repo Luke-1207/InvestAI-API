@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,10 @@ public class CotacaoService {
         }
 
         return buscarEAtualizarCache(ticker);
+    }
+
+    public Optional<CotacaoResponseDTO> obterCotacaoEmCache(String codigo) {
+        return Optional.ofNullable(cotacaoCaffeineCache.getIfPresent(codigo.toUpperCase().trim()));
     }
 
     public boolean atualizarCacheSilenciosamente(String codigo) {

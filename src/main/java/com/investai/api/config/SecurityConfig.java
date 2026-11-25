@@ -99,6 +99,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.DELETE, "/v1/renda-fixa/titulos/**").hasRole(Role.GESTOR.toString())
                         .requestMatchers(HttpMethod.PATCH, "/v1/dashboard/indicadores/**").hasRole(Role.GESTOR.toString())
+                        .requestMatchers(HttpMethod.POST, "/v1/notificacoes/sistema").hasRole(Role.GESTOR.toString())
 
                         // Tudo mais precisa estar autenticado
                         .anyRequest().authenticated()

@@ -89,3 +89,14 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 900000
   refresh-expiration-days: 7
+
+favoritos:
+  limite-por-usuario: ${FAVORITOS_LIMITE_POR_USUARIO:50}
+
+notificacoes:
+  gatilhos:
+    initial-delay-ms: ${NOTIFICACOES_GATILHOS_INITIAL_DELAY_MS:120000}
+    intervalo-ms: ${NOTIFICACOES_GATILHOS_INTERVALO_MS:900000}
+    janela-repeticao-horas: 24
+    dias-aviso-vencimento: 30
+    janela-repeticao-vencimento-dias: 7
