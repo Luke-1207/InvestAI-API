@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,4 +52,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     long countByDeletadoEmIsNull();
 
     long countByDeletadoEmIsNullAndCriadoEmGreaterThanEqual(LocalDateTime inicio);
+
+    @Query("SELECT u.id FROM Usuario u WHERE u.ativo = true AND u.deletadoEm IS NULL")
+    List<UUID> findIdsAtivos();
 }
